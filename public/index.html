@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#F7941D">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏪</text></svg>">
+</head>
+<body>
+    <!-- 7-11 風格 Header -->
+    <header class="header">
+        <div class="header-stripes">
+            <div class="stripe-orange"></div>
+            <div class="stripe-green"></div>
+            <div class="stripe-red"></div>
+        </div>
+        <div class="header-content">
+            <h1>🏪 潮欣小幫手</h1>
+            <p class="subtitle">便利商店生鮮品效期管理</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 歡迎區塊 -->
+        <div class="welcome-section">
+            <p class="welcome-text">👋 歡迎回來！</p>
+            <p class="welcome-subtitle">效期管理，交給我就對了！</p>
+            <div class="welcome-stats" id="stats">
+                <!-- 由 JavaScript 動態填入 -->
+            </div>
+        </div>
+
+        <!-- 效期提醒卡片 -->
+        <div class="alert-card hidden" id="alertCard" onclick="location.href='/inventory'">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-content">
+                <h3>今天有商品即將到期</h3>
+                <p>點擊查看詳情</p>
+            </div>
+        </div>
+
+        <!-- 功能卡片 -->
+        <div class="feature-grid">
+            <div class="feature-card" onclick="location.href='/quick-register'">
+                <div class="icon">📱</div>
+                <h3>快速商品登記</h3>
+                <p>掃條碼自動帶入</p>
+            </div>
+            
+            <div class="feature-card" onclick="location.href='/inventory'">
+                <div class="icon">📋</div>
+                <h3>庫存管理</h3>
+                <p>查看效期、下架</p>
+            </div>
+            
+            <div class="feature-card full-width primary" onclick="location.href='/products'">
+                <div class="icon">📦</div>
+                <h3>商品資料庫</h3>
+                <p>管理所有商品、新增常用品項</p>
+            </div>
+        </div>
+
+        <!-- 管理員專屬區塊 -->
+        <div class="admin-section">
+            <p class="section-title">🔐 管理員功能</p>
+            <div class="feature-grid">
+                <div class="feature-card" onclick="location.href='/settings'">
+                    <div class="icon">⚙️</div>
+                    <h3>系統設定</h3>
+                    <p>通知時間設定</p>
+                </div>
+                
+                <div class="feature-card" onclick="location.href='/line-settings'">
+                    <div class="icon">🤖</div>
+                    <h3>LINE Bot</h3>
+                    <p>設定自動提醒</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-stripes">
+                <div class="stripe-orange"></div>
+                <div class="stripe-green"></div>
+                <div class="stripe-red"></div>
+            </div>
+            <p style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">潮欣小幫手 v1.0.0</p>
+            <p style="margin-bottom: 12px;">Always Open, Always Fresh 🧡</p>
+            <div style="border-top: 1px solid var(--gray-300); padding-top: 12px; font-size: 0.7rem; color: var(--text-hint); line-height: 1.6;">
+                <p>便利商店生鮮品效期管理系統</p>
+                <p style="margin-top: 4px;">© 2026 王逸君 版權所有</p>
+                <p style="margin-top: 2px;">未經授權禁止複製、修改或商業使用</p>
+                <p style="margin-top: 8px; font-size: 0.65rem;">授權洽詢：Hour Light International Co., Ltd.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        // 載入儀表板資料
+        async function init() {
+            try {
+                const data = await api('/dashboard');
+                
+                // 更新統計
+                const statsEl = document.getElementById('stats');
+                if (statsEl) {
+                    statsEl.innerHTML = `
+                        <div class="stat-item">📦 庫存 ${data.total} 件</div>
+                        <div class="stat-item">📝 今日 ${data.today} 件</div>
+                    `;
+                }
+                
+                // 更新效期提醒卡片
+                const alertCard = document.getElementById('alertCard');
+                if (alertCard) {
+                    const totalUrgent = data.expiring + data.expired;
+                    if (totalUrgent > 0) {
+                        alertCard.classList.remove('hidden');
+                        alertCard.querySelector('.alert-content h3').textContent = 
+                            `今天有 ${totalUrgent} 個商品需要處理`;
+                        alertCard.querySelector('.alert-content p').textContent = 
+                            `${data.expired > 0 ? data.expired + ' 個已過期、' : ''}${data.expiring > 0 ? data.expiring + ' 個即將到期' : ''}`;
+                    }
+                }
+            } catch (error) {
+                console.error('載入失敗:', error);
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>

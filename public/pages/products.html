@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#F7941D">
+    <title>商品資料庫 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .product-card {
+            background: var(--white);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        
+        .product-card .emoji {
+            font-size: 2rem;
+            width: 50px;
+            height: 50px;
+            background: var(--gray-100);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .product-card .info {
+            flex: 1;
+        }
+        
+        .product-card .name {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+        
+        .product-card .detail {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .product-card .delete-btn {
+            padding: 8px;
+            border: none;
+            background: none;
+            font-size: 1.25rem;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        
+        .product-card .delete-btn:hover {
+            opacity: 1;
+        }
+        
+        .add-product-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--seven-orange) 0%, #FF9D45 100%);
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(247, 148, 29, 0.4);
+            transition: all 0.2s;
+        }
+        
+        .add-product-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .stats-bar {
+            background: var(--white);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .stats-bar .number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--seven-orange);
+        }
+        
+        .stats-bar .label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .search-box {
+            background: var(--white);
+            padding: 4px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .search-box input {
+            border: none;
+            padding: 14px 16px;
+            width: 100%;
+            font-size: 1rem;
+            background: transparent;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+        }
+        
+        .category-filter {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .category-filter::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .filter-chip {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: var(--white);
+            border: 2px solid var(--gray-300);
+            font-size: 0.85rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .filter-chip:hover {
+            border-color: var(--seven-orange);
+        }
+        
+        .filter-chip.active {
+            background: var(--seven-orange);
+            border-color: var(--seven-orange);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-stripes">
+            <div class="stripe-orange"></div>
+            <div class="stripe-green"></div>
+            <div class="stripe-red"></div>
+        </div>
+        <div class="header-content">
+            <span class="header-back" onclick="location.href='/'">←</span>
+            <h1>📦 商品資料庫</h1>
+            <p class="subtitle">管理所有商品資料</p>
+        </div>
+    </header>
+
+    <div class="container" style="padding-bottom: 100px;">
+        
+        <!-- 統計 -->
+        <div class="stats-bar">
+            <div class="number" id="totalCount">0</div>
+            <div class="label">個商品已建檔</div>
+        </div>
+        
+        <!-- 搜尋 -->
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 搜尋商品名稱或條碼...">
+        </div>
+        
+        <!-- 類別篩選 -->
+        <div class="category-filter">
+            <button class="filter-chip active" data-filter="all">全部</button>
+            <button class="filter-chip" data-filter="乳製品">🥛 乳製品</button>
+            <button class="filter-chip" data-filter="沙拉">🥗 沙拉</button>
+            <button class="filter-chip" data-filter="三明治">🥪 三明治</button>
+            <button class="filter-chip" data-filter="麵包">🍞 麵包</button>
+            <button class="filter-chip" data-filter="便當">🍱 便當</button>
+            <button class="filter-chip" data-filter="飲料">🥤 飲料</button>
+            <button class="filter-chip" data-filter="甜點">🍰 甜點</button>
+            <button class="filter-chip" data-filter="其他">📦 其他</button>
+        </div>
+        
+        <!-- 商品列表 -->
+        <div id="productList">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">載入中...</div>
+            </div>
+        </div>
+        
+        <!-- 版權 -->
+        <div class="copyright">
+            <p class="copyright-brand">潮欣小幫手</p>
+            <p>© 2026 王逸君 版權所有</p>
+        </div>
+    </div>
+    
+    <!-- 新增按鈕 -->
+    <button class="add-product-btn" id="addBtn">+</button>
+
+    <!-- 新增商品 Modal -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal" style="max-width: 360px;">
+            <h3>➕ 新增商品</h3>
+            <p class="text-muted" style="margin-bottom: 16px; font-size: 0.85rem;">
+                先把常用商品加進來，之後登記更快！
+            </p>
+            
+            <div class="form-group">
+                <label>條碼 *</label>
+                <input type="text" id="addBarcode" placeholder="輸入或掃描條碼" inputmode="numeric">
+            </div>
+            
+            <div class="form-group">
+                <label>商品名稱 *</label>
+                <input type="text" id="addName" placeholder="例如：光泉鮮乳">
+            </div>
+            
+            <div class="form-group">
+                <label>類別</label>
+                <select id="addCategory">
+                    <option value="">請選擇</option>
+                    <option value="乳製品">🥛 乳製品</option>
+                    <option value="沙拉">🥗 沙拉</option>
+                    <option value="三明治">🥪 三明治</option>
+                    <option value="麵包">🍞 麵包</option>
+                    <option value="便當">🍱 便當</option>
+                    <option value="飲料">🥤 飲料</option>
+                    <option value="甜點">🍰 甜點</option>
+                    <option value="其他">📦 其他</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>儲存溫度</label>
+                <select id="addTemp">
+                    <option value="refrigerated">❄️ 冷藏</option>
+                    <option value="frozen">🧊 冷凍</option>
+                    <option value="room_temp">🌡️ 常溫</option>
+                </select>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelAdd">取消</button>
+                <button class="btn btn-primary" id="confirmAdd">新增</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let allProducts = [];
+        let currentFilter = 'all';
+        let searchTerm = '';
+
+        // 載入商品
+        async function loadProducts() {
+            const list = document.getElementById('productList');
+            
+            try {
+                const products = await api('/products');
+                allProducts = products;
+                document.getElementById('totalCount').textContent = products.length;
+                renderProducts();
+            } catch (err) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">😢</div>
+                        <h3>載入失敗</h3>
+                        <p>請重新整理頁面</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 渲染商品列表
+        function renderProducts() {
+            const list = document.getElementById('productList');
+            
+            let filtered = allProducts;
+            
+            // 類別篩選
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(p => p.category === currentFilter);
+            }
+            
+            // 搜尋
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                filtered = filtered.filter(p => 
+                    p.name.toLowerCase().includes(term) || 
+                    p.barcode.includes(term)
+                );
+            }
+            
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <h3>沒有商品</h3>
+                        <p>點右下角 + 新增商品</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = filtered.map(p => `
+                <div class="product-card">
+                    <div class="emoji">${getCategoryEmoji(p.category)}</div>
+                    <div class="info">
+                        <div class="name">${escapeHtml(p.name)}</div>
+                        <div class="detail">
+                            ${p.barcode} · ${p.category || '未分類'} · ${getTempText(p.storage_temp)}
+                        </div>
+                    </div>
+                    <button class="delete-btn" onclick="deleteProduct(${p.id}, '${escapeHtml(p.name)}')">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        function getCategoryEmoji(category) {
+            const map = {
+                '乳製品': '🥛',
+                '沙拉': '🥗',
+                '三明治': '🥪',
+                '麵包': '🍞',
+                '便當': '🍱',
+                '飲料': '🥤',
+                '甜點': '🍰',
+                '其他': '📦'
+            };
+            return map[category] || '📦';
+        }
+
+        function getTempText(temp) {
+            const map = {
+                'refrigerated': '❄️ 冷藏',
+                'frozen': '🧊 冷凍',
+                'room_temp': '🌡️ 常溫'
+            };
+            return map[temp] || '❄️ 冷藏';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[m]);
+        }
+
+        // 搜尋
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchTerm = e.target.value;
+            renderProducts();
+        });
+
+        // 類別篩選
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.onclick = () => {
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                currentFilter = chip.dataset.filter;
+                renderProducts();
+            };
+        });
+
+        // 新增 Modal
+        const addModal = document.getElementById('addModal');
+        
+        document.getElementById('addBtn').onclick = () => {
+            addModal.classList.add('show');
+            document.getElementById('addBarcode').focus();
+        };
+        
+        document.getElementById('cancelAdd').onclick = () => {
+            addModal.classList.remove('show');
+            clearAddForm();
+        };
+        
+        addModal.onclick = (e) => {
+            if (e.target === addModal) {
+                addModal.classList.remove('show');
+                clearAddForm();
+            }
+        };
+
+        function clearAddForm() {
+            document.getElementById('addBarcode').value = '';
+            document.getElementById('addName').value = '';
+            document.getElementById('addCategory').value = '';
+            document.getElementById('addTemp').value = 'refrigerated';
+        }
+
+        // 新增商品
+        document.getElementById('confirmAdd').onclick = async () => {
+            const barcode = document.getElementById('addBarcode').value.trim();
+            const name = document.getElementById('addName').value.trim();
+            const category = document.getElementById('addCategory').value;
+            const temp = document.getElementById('addTemp').value;
+            
+            if (!barcode || !name) {
+                showToast('請填寫條碼和商品名稱', 'error');
+                return;
+            }
+            
+            try {
+                await api('/products', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        barcode,
+                        name,
+                        category: category || null,
+                        storage_temp: temp
+                    })
+                });
+                
+                showToast('✅ 商品新增成功！', 'success');
+                addModal.classList.remove('show');
+                clearAddForm();
+                loadProducts();
+            } catch (err) {
+                showToast(err.message || '新增失敗', 'error');
+            }
+        };
+
+        // 刪除商品
+        async function deleteProduct(id, name) {
+            const confirmed = await showConfirm('刪除商品', `確定要刪除「${name}」嗎？`);
+            if (!confirmed) return;
+            
+            try {
+                await api(`/products/${id}`, { method: 'DELETE' });
+                showToast('✅ 已刪除', 'success');
+                loadProducts();
+            } catch (err) {
+                showToast('刪除失敗', 'error');
+            }
+        }
+
+        loadProducts();
+    </script>
+</body>
+</html>

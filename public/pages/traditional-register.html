@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#F7941D">
+    <title>傳統商品入庫 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- 7-11 風格 Header -->
+    <header class="header">
+        <div class="header-stripes">
+            <div class="stripe-orange"></div>
+            <div class="stripe-green"></div>
+            <div class="stripe-red"></div>
+        </div>
+        <div class="header-content">
+            <span class="header-back" onclick="location.href='/'">←</span>
+            <h1>📷 傳統商品入庫</h1>
+            <p class="subtitle">掃描條碼快速登記</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 步驟一：掃描條碼 -->
+        <div id="step1">
+            <div class="barcode-input-section">
+                <p style="text-align: center; margin-bottom: 16px; color: var(--text-secondary);">
+                    使用條碼掃描器或手動輸入
+                </p>
+                
+                <div class="barcode-display" id="barcodeDisplay">
+                    等待掃描...
+                </div>
+
+                <div class="form-group">
+                    <label>條碼號碼</label>
+                    <input type="text" id="barcodeInput" placeholder="掃描或輸入條碼" autofocus inputmode="numeric">
+                    <p class="helper-text">掃描器會自動輸入，手動輸入後按 Enter</p>
+                </div>
+
+                <button class="btn btn-primary" id="lookupBtn">
+                    🔍 查詢商品
+                </button>
+            </div>
+        </div>
+
+        <!-- 步驟二：新增商品 -->
+        <div id="step2" class="hidden">
+            <div class="settings-section">
+                <h3>📦 新增商品</h3>
+                <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 16px;">
+                    這個條碼在系統中還沒有資料
+                </p>
+                
+                <div class="form-group">
+                    <label>條碼</label>
+                    <input type="text" id="newBarcode" readonly style="background: var(--gray-100);">
+                </div>
+                
+                <div class="form-group">
+                    <label>商品名稱 *</label>
+                    <input type="text" id="newName" placeholder="請輸入商品名稱" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>商品類別</label>
+                    <select id="newCategory">
+                        <option value="">請選擇</option>
+                        <option value="乳製品">🥛 乳製品</option>
+                        <option value="沙拉">🥗 沙拉</option>
+                        <option value="三明治">🥪 三明治</option>
+                        <option value="麵包">🍞 麵包</option>
+                        <option value="飲料">🥤 飲料</option>
+                        <option value="便當">🍱 便當</option>
+                        <option value="甜點">🍰 甜點</option>
+                        <option value="其他">📦 其他</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>儲存溫度</label>
+                    <select id="newTemp">
+                        <option value="refrigerated">❄️ 冷藏</option>
+                        <option value="frozen">🧊 冷凍</option>
+                        <option value="room_temp">🌡️ 常溫</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" id="cancelNewBtn" style="flex: 1;">取消</button>
+                    <button class="btn btn-primary" id="confirmNewBtn" style="flex: 1;">確認新增</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步驟三：輸入效期和數量 -->
+        <div id="step3" class="hidden">
+            <div class="settings-section">
+                <h3>📝 登記入庫</h3>
+                
+                <div style="background: var(--seven-orange-light); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 20px;">
+                    <p style="font-weight: 600; color: var(--seven-orange);" id="productNameDisplay">商品名稱</p>
+                    <p class="text-muted" style="font-size: 0.8rem;" id="productBarcodeDisplay">條碼：</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>有效期限 *</label>
+                    <input type="datetime-local" id="expiryInput" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>數量</label>
+                    <input type="number" id="quantityInput" value="1" min="1" max="999">
+                </div>
+
+                <button class="btn btn-success" id="saveBtn">
+                    💾 儲存登記記錄
+                </button>
+                
+                <button class="btn btn-secondary mt-16" id="rescanBtn">
+                    🔄 重新掃描
+                </button>
+            </div>
+        </div>
+
+        <!-- 步驟四：登記成功 -->
+        <div id="step4" class="hidden">
+            <div class="empty-state" style="padding: 60px 20px;">
+                <div class="icon">🎉</div>
+                <h3 class="text-success">商品登記成功！</h3>
+                <p style="margin-bottom: 24px;">商品已加入庫存</p>
+                
+                <button class="btn btn-primary" id="continueBtn" style="margin-bottom: 12px;">
+                    ➕ 繼續登記
+                </button>
+                <button class="btn btn-secondary" onclick="location.href='/inventory'">
+                    📋 查看庫存
+                </button>
+            </div>
+        </div>
+
+        <!-- 版權聲明 -->
+        <div class="copyright">
+            <p class="copyright-brand">潮欣小幫手</p>
+            <p>便利商店生鮮品效期管理系統</p>
+            <p class="copyright-notice">© 2026 王逸君 版權所有<br>未經授權禁止複製、修改或商業使用</p>
+            <p class="copyright-contact">授權洽詢：Hour Light International Co., Ltd.</p>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+        const step4 = document.getElementById('step4');
+        
+        const barcodeInput = document.getElementById('barcodeInput');
+        const barcodeDisplay = document.getElementById('barcodeDisplay');
+        
+        let currentProduct = null;
+        let currentBarcode = '';
+
+        initBarcodeInput(barcodeInput, handleBarcodeComplete);
+
+        barcodeInput.addEventListener('input', () => {
+            barcodeDisplay.textContent = barcodeInput.value || '等待掃描...';
+        });
+
+        document.getElementById('lookupBtn').addEventListener('click', () => {
+            const barcode = barcodeInput.value.trim();
+            if (barcode) {
+                handleBarcodeComplete(barcode);
+            } else {
+                showToast('請輸入條碼', 'error');
+            }
+        });
+
+        barcodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const barcode = barcodeInput.value.trim();
+                if (barcode) handleBarcodeComplete(barcode);
+            }
+        });
+
+        async function handleBarcodeComplete(barcode) {
+            currentBarcode = barcode;
+            barcodeDisplay.textContent = barcode;
+
+            try {
+                const product = await lookupBarcode(barcode);
+                
+                if (product) {
+                    currentProduct = product;
+                    showProductForm(product);
+                } else {
+                    document.getElementById('newBarcode').value = barcode;
+                    showStep(2);
+                }
+            } catch (error) {
+                showToast('查詢失敗', 'error');
+            }
+        }
+
+        function showProductForm(product) {
+            document.getElementById('productNameDisplay').textContent = product.name;
+            document.getElementById('productBarcodeDisplay').textContent = `條碼：${product.barcode}`;
+            showStep(3);
+        }
+
+        document.getElementById('cancelNewBtn').addEventListener('click', () => {
+            resetForm();
+            showStep(1);
+        });
+
+        document.getElementById('confirmNewBtn').addEventListener('click', async () => {
+            const name = document.getElementById('newName').value.trim();
+            
+            if (!name) {
+                showToast('請輸入商品名稱', 'error');
+                return;
+            }
+
+            try {
+                const result = await api('/products', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        barcode: currentBarcode,
+                        name: name,
+                        category: document.getElementById('newCategory').value || null,
+                        storage_temp: document.getElementById('newTemp').value || 'refrigerated'
+                    })
+                });
+
+                currentProduct = { id: result.id, barcode: currentBarcode, name: name };
+                showToast(result.message || '✅ 新商品已建檔', 'success');
+                showProductForm(currentProduct);
+
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            const expiryDate = document.getElementById('expiryInput').value;
+            const quantity = parseInt(document.getElementById('quantityInput').value) || 1;
+
+            if (!expiryDate) {
+                showToast('請選擇有效期限', 'error');
+                return;
+            }
+
+            try {
+                const result = await api('/inventory', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        product_id: currentProduct.id,
+                        expiry_date: expiryDate,
+                        quantity: quantity
+                    })
+                });
+
+                showToast(result.message || '🎉 商品登記成功！', 'success');
+                showStep(4);
+
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        document.getElementById('rescanBtn').addEventListener('click', () => {
+            resetForm();
+            showStep(1);
+        });
+
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            resetForm();
+            showStep(1);
+        });
+
+        function resetForm() {
+            barcodeInput.value = '';
+            barcodeDisplay.textContent = '等待掃描...';
+            document.getElementById('newName').value = '';
+            document.getElementById('newCategory').value = '';
+            document.getElementById('newTemp').value = 'refrigerated';
+            document.getElementById('expiryInput').value = '';
+            document.getElementById('quantityInput').value = '1';
+            currentProduct = null;
+            currentBarcode = '';
+            barcodeInput.focus();
+        }
+
+        function showStep(num) {
+            [step1, step2, step3, step4].forEach((el, i) => {
+                el.classList.toggle('hidden', i + 1 !== num);
+            });
+        }
+    </script>
+</body>
+</html>
