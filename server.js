@@ -19,7 +19,57 @@ const fs = require('fs');
 const schema = fs.readFileSync(path.join(__dirname, 'database', 'schema.sql'), 'utf8');
 db.exec(schema);
 
-// Middleware
+// LINE Webhook - 必須放在 express.json() 之前！
+const line = require('@line/bot-sdk');
+const lineConfig = {
+    channelSecret: process.env.LINE_CHANNEL_SECRET || 'dummy'
+};
+
+app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    // 驗證簽名
+    const signature = req.headers['x-line-signature'];
+    if (!signature) {
+        console.log('缺少 LINE 簽名');
+        return res.status(400).send('Missing signature');
+    }
+
+    // 驗證簽名
+    const crypto = require('crypto');
+    const channelSecret = process.env.LINE_CHANNEL_SECRET;
+    const body = req.body;
+    
+    const hash = crypto
+        .createHmac('SHA256', channelSecret)
+        .update(body)
+        .digest('base64');
+    
+    if (hash !== signature) {
+        console.log('LINE 簽名驗證失敗');
+        return res.status(401).send('Invalid signature');
+    }
+
+    // 解析 body
+    let events;
+    try {
+        const bodyObj = JSON.parse(body.toString());
+        events = bodyObj.events;
+    } catch (e) {
+        console.log('解析 LINE 訊息失敗:', e);
+        return res.status(400).send('Invalid JSON');
+    }
+
+    // 處理事件
+    try {
+        const lineBot = require('./services/line-bot')(db);
+        await Promise.all(events.map(event => lineBot.handleEvent(event)));
+        res.status(200).send('OK');
+    } catch (error) {
+        console.error('處理 LINE 事件錯誤:', error);
+        res.status(500).send('Error');
+    }
+});
+
+// Middleware（放在 webhook 之後）
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -71,21 +121,6 @@ app.post('/api/notify/manual', async (req, res) => {
     } catch (error) {
         console.error('發送提醒失敗:', error);
         res.status(500).json({ error: '發送提醒失敗' });
-    }
-});
-
-// LINE Webhook
-const line = require('@line/bot-sdk');
-app.post('/webhook', line.middleware({
-    channelSecret: process.env.LINE_CHANNEL_SECRET || 'dummy'
-}), async (req, res) => {
-    try {
-        const lineBot = require('./services/line-bot')(db);
-        await Promise.all(req.body.events.map(event => lineBot.handleEvent(event)));
-        res.status(200).end();
-    } catch (error) {
-        console.error('Webhook 錯誤:', error);
-        res.status(500).end();
     }
 });
 
