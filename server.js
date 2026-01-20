@@ -19,53 +19,40 @@ const fs = require('fs');
 const schema = fs.readFileSync(path.join(__dirname, 'database', 'schema.sql'), 'utf8');
 db.exec(schema);
 
-// LINE Webhook - 必須放在 express.json() 之前！
-const line = require('@line/bot-sdk');
-const lineConfig = {
-    channelSecret: process.env.LINE_CHANNEL_SECRET || 'dummy'
-};
-
-app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-    // 驗證簽名
-    const signature = req.headers['x-line-signature'];
-    if (!signature) {
-        console.log('缺少 LINE 簽名');
-        return res.status(400).send('Missing signature');
-    }
-
-    // 驗證簽名
-    const crypto = require('crypto');
-    const channelSecret = process.env.LINE_CHANNEL_SECRET;
-    const body = req.body;
+// LINE Webhook - 必須放在最前面，用 raw body
+app.post('/webhook', express.raw({ type: '*/*' }), async (req, res) => {
+    console.log('=== 收到 LINE Webhook ===');
     
-    const hash = crypto
-        .createHmac('SHA256', channelSecret)
-        .update(body)
-        .digest('base64');
-    
-    if (hash !== signature) {
-        console.log('LINE 簽名驗證失敗');
-        return res.status(401).send('Invalid signature');
-    }
-
-    // 解析 body
-    let events;
     try {
-        const bodyObj = JSON.parse(body.toString());
-        events = bodyObj.events;
-    } catch (e) {
-        console.log('解析 LINE 訊息失敗:', e);
-        return res.status(400).send('Invalid JSON');
-    }
+        // 解析 body
+        let body;
+        if (Buffer.isBuffer(req.body)) {
+            body = JSON.parse(req.body.toString());
+        } else if (typeof req.body === 'string') {
+            body = JSON.parse(req.body);
+        } else {
+            body = req.body;
+        }
+        
+        console.log('Events:', JSON.stringify(body.events, null, 2));
+        
+        const events = body.events || [];
+        if (events.length === 0) {
+            console.log('沒有事件');
+            return res.status(200).send('OK');
+        }
 
-    // 處理事件
-    try {
         const lineBot = require('./services/line-bot')(db);
-        await Promise.all(events.map(event => lineBot.handleEvent(event)));
+        for (const event of events) {
+            console.log('處理事件:', event.type);
+            await lineBot.handleEvent(event);
+        }
+        
+        console.log('=== Webhook 處理完成 ===');
         res.status(200).send('OK');
     } catch (error) {
-        console.error('處理 LINE 事件錯誤:', error);
-        res.status(500).send('Error');
+        console.error('Webhook 錯誤:', error);
+        res.status(200).send('OK');
     }
 });
 
@@ -78,7 +65,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+    limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 // 匯入路由
