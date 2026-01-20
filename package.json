@@ -1,5 +1,8 @@
 {
   "name": "chaoxin-helper",
+  "engines": {
+  "node": "18.x"
+},
   "version": "1.0.0",
   "description": "潮欣小幫手 - 便利商店生鮮品效期管理系統",
   "main": "server.js",
