@@ -93,25 +93,255 @@ module.exports = function(db) {
      */
     async function handleTextMessage(event, client) {
         const text = event.message.text.toLowerCase();
+        const baseUrl = process.env.BASE_URL || 'https://chaoxin-helper.onrender.com';
 
-        // 簡單的關鍵字回應
-        if (text.includes('效期') || text.includes('到期')) {
+        // 關鍵字觸發選單
+        const menuKeywords = [
+            '潮欣小幫手', '小幫手', '店長助理', '小助理', 
+            '小妞', '潮欣小妞', '幫助', 'help', '選單', 'menu',
+            '你好', '嗨', 'hi', 'hello'
+        ];
+
+        const shouldShowMenu = menuKeywords.some(keyword => text.includes(keyword));
+
+        if (shouldShowMenu) {
+            // 發送選單 Flex Message
+            await client.replyMessage({
+                replyToken: event.replyToken,
+                messages: [createMenuFlexMessage(baseUrl)]
+            });
+            return;
+        }
+
+        // 效期查詢關鍵字
+        if (text.includes('效期') || text.includes('到期') || text.includes('過期')) {
             const expiringItems = db.prepare(`
                 SELECT COUNT(*) as count FROM inventory 
                 WHERE status = 'in_stock' 
                 AND expiry_date <= datetime('now', '+24 hours')
             `).get();
 
+            const totalItems = db.prepare(`
+                SELECT COUNT(*) as count FROM inventory 
+                WHERE status = 'in_stock'
+            `).get();
+
+            await client.replyMessage({
+                replyToken: event.replyToken,
+                messages: [{
+                    type: 'flex',
+                    altText: '效期狀況報告',
+                    contents: {
+                        type: 'bubble',
+                        size: 'kilo',
+                        header: {
+                            type: 'box',
+                            layout: 'vertical',
+                            contents: [{
+                                type: 'text',
+                                text: '📊 效期狀況報告',
+                                weight: 'bold',
+                                size: 'lg',
+                                color: '#F7941D'
+                            }],
+                            backgroundColor: '#FFF8F0',
+                            paddingAll: '15px'
+                        },
+                        body: {
+                            type: 'box',
+                            layout: 'vertical',
+                            contents: [
+                                {
+                                    type: 'box',
+                                    layout: 'horizontal',
+                                    contents: [
+                                        { type: 'text', text: '總庫存', size: 'sm', color: '#666666', flex: 2 },
+                                        { type: 'text', text: `${totalItems.count} 件`, size: 'sm', weight: 'bold', flex: 2 }
+                                    ]
+                                },
+                                {
+                                    type: 'box',
+                                    layout: 'horizontal',
+                                    contents: [
+                                        { type: 'text', text: '即將到期', size: 'sm', color: '#666666', flex: 2 },
+                                        { type: 'text', text: `${expiringItems.count} 件`, size: 'sm', weight: 'bold', color: expiringItems.count > 0 ? '#FF5551' : '#1DB446', flex: 2 }
+                                    ],
+                                    margin: 'md'
+                                }
+                            ],
+                            paddingAll: '15px'
+                        },
+                        footer: {
+                            type: 'box',
+                            layout: 'vertical',
+                            contents: [{
+                                type: 'button',
+                                action: {
+                                    type: 'uri',
+                                    label: '👉 查看詳情',
+                                    uri: `${baseUrl}/inventory`
+                                },
+                                style: 'primary',
+                                color: '#1DB446',
+                                height: 'sm'
+                            }],
+                            paddingAll: '12px'
+                        }
+                    }
+                }]
+            });
+            return;
+        }
+
+        // 庫存查詢關鍵字
+        if (text.includes('庫存') || text.includes('有什麼')) {
+            const totalItems = db.prepare(`
+                SELECT COUNT(*) as count FROM inventory 
+                WHERE status = 'in_stock'
+            `).get();
+
             await client.replyMessage({
                 replyToken: event.replyToken,
                 messages: [{
                     type: 'text',
-                    text: `📊 效期狀況報告\n\n目前有 ${expiringItems.count} 個商品即將在 24 小時內到期喔！\n\n👉 前往系統查看詳情`
+                    text: `📦 目前庫存共 ${totalItems.count} 件商品\n\n👉 前往查看：\n${baseUrl}/inventory`
                 }]
             });
+            return;
         }
 
         return null;
+    }
+
+    /**
+     * 建立選單 Flex Message
+     */
+    function createMenuFlexMessage(baseUrl) {
+        return {
+            type: 'flex',
+            altText: '潮欣小幫手選單',
+            contents: {
+                type: 'bubble',
+                size: 'mega',
+                header: {
+                    type: 'box',
+                    layout: 'vertical',
+                    contents: [
+                        {
+                            type: 'text',
+                            text: '🏪 潮欣小幫手',
+                            weight: 'bold',
+                            size: 'xl',
+                            color: '#FFFFFF'
+                        },
+                        {
+                            type: 'text',
+                            text: '便利商店效期管理系統',
+                            size: 'sm',
+                            color: '#FFFFFF',
+                            margin: 'sm'
+                        }
+                    ],
+                    backgroundColor: '#F7941D',
+                    paddingAll: '20px'
+                },
+                body: {
+                    type: 'box',
+                    layout: 'vertical',
+                    contents: [
+                        {
+                            type: 'text',
+                            text: '嗨～我是潮欣小幫手！',
+                            size: 'md',
+                            wrap: true
+                        },
+                        {
+                            type: 'text',
+                            text: '有什麼我可以幫忙的嗎？',
+                            size: 'sm',
+                            color: '#666666',
+                            margin: 'sm',
+                            wrap: true
+                        },
+                        {
+                            type: 'separator',
+                            margin: 'lg'
+                        },
+                        {
+                            type: 'text',
+                            text: '📌 快速功能',
+                            size: 'sm',
+                            color: '#999999',
+                            margin: 'lg'
+                        }
+                    ],
+                    paddingAll: '20px'
+                },
+                footer: {
+                    type: 'box',
+                    layout: 'vertical',
+                    contents: [
+                        {
+                            type: 'button',
+                            action: {
+                                type: 'uri',
+                                label: '🏠 前往首頁',
+                                uri: baseUrl
+                            },
+                            style: 'primary',
+                            color: '#F7941D',
+                            height: 'sm'
+                        },
+                        {
+                            type: 'button',
+                            action: {
+                                type: 'uri',
+                                label: '📱 快速商品登記',
+                                uri: `${baseUrl}/quick-register`
+                            },
+                            style: 'secondary',
+                            height: 'sm',
+                            margin: 'sm'
+                        },
+                        {
+                            type: 'button',
+                            action: {
+                                type: 'uri',
+                                label: '📋 庫存管理',
+                                uri: `${baseUrl}/inventory`
+                            },
+                            style: 'secondary',
+                            height: 'sm',
+                            margin: 'sm'
+                        },
+                        {
+                            type: 'button',
+                            action: {
+                                type: 'uri',
+                                label: '📦 商品資料庫',
+                                uri: `${baseUrl}/products`
+                            },
+                            style: 'secondary',
+                            height: 'sm',
+                            margin: 'sm'
+                        },
+                        {
+                            type: 'box',
+                            layout: 'vertical',
+                            contents: [{
+                                type: 'text',
+                                text: '💡 輸入「效期」可查詢到期狀況',
+                                size: 'xs',
+                                color: '#999999',
+                                align: 'center'
+                            }],
+                            margin: 'lg'
+                        }
+                    ],
+                    paddingAll: '15px'
+                }
+            }
+        };
     }
 
     /**
