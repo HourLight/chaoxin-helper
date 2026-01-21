@@ -1131,6 +1131,14 @@ a:hover {
     text-align: center;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     border: 1px solid rgba(46, 204, 113, 0.2);
+    position: relative;
+    overflow: visible;
+}
+
+/* 覆蓋掉舊的偽元素 */
+.welcome-section::before,
+.welcome-section::after {
+    display: none;
 }
 
 .welcome-text {
