@@ -25,10 +25,14 @@
     </header>
 
     <div class="container">
-        <!-- 歡迎區塊 -->
+        <!-- 歡迎區塊（含吉祥物） -->
         <div class="welcome-section">
+            <!-- 吉祥物圖片 -->
+            <div class="mascot-container">
+                <img src="/images/mascot.png" alt="潮欣小幫手" class="mascot-image">
+            </div>
             <p class="welcome-text">👋 歡迎回來！</p>
-            <p class="welcome-subtitle">效期管理，交給我就對了！</p>
+            <p class="welcome-subtitle">💚 有我在，效期管理變簡單！</p>
             <div class="welcome-stats" id="stats">
                 <!-- 由 JavaScript 動態填入 -->
             </div>
@@ -43,8 +47,19 @@
             </div>
         </div>
 
-        <!-- 功能卡片 -->
+        <!-- 主要功能區塊 -->
+        <div class="section-header">
+            <span class="section-icon">⭐</span>
+            <span class="section-title">主要功能</span>
+        </div>
+        
         <div class="feature-grid">
+            <div class="feature-card" onclick="location.href='/smart-register'">
+                <div class="icon">📸</div>
+                <h3>智慧商品登記</h3>
+                <p>拍照 AI 自動辨識</p>
+            </div>
+            
             <div class="feature-card" onclick="location.href='/quick-register'">
                 <div class="icon">📱</div>
                 <h3>快速商品登記</h3>
@@ -53,32 +68,34 @@
             
             <div class="feature-card" onclick="location.href='/inventory'">
                 <div class="icon">📋</div>
-                <h3>庫存管理</h3>
-                <p>查看效期、下架</p>
+                <h3>看看有什麼貨？</h3>
+                <p>庫存查詢、效期管理</p>
             </div>
             
-            <div class="feature-card full-width primary" onclick="location.href='/products'">
+            <div class="feature-card" onclick="location.href='/products'">
                 <div class="icon">📦</div>
                 <h3>商品資料庫</h3>
-                <p>管理所有商品、新增常用品項</p>
+                <p>管理所有商品資料</p>
             </div>
         </div>
 
         <!-- 管理員專屬區塊 -->
-        <div class="admin-section">
-            <p class="section-title">🔐 管理員功能</p>
-            <div class="feature-grid">
-                <div class="feature-card" onclick="location.href='/settings'">
-                    <div class="icon">⚙️</div>
-                    <h3>系統設定</h3>
-                    <p>通知時間設定</p>
-                </div>
-                
-                <div class="feature-card" onclick="location.href='/line-settings'">
-                    <div class="icon">🤖</div>
-                    <h3>LINE Bot</h3>
-                    <p>設定自動提醒</p>
-                </div>
+        <div class="section-header admin">
+            <span class="section-icon">🔐</span>
+            <span class="section-title">管理員功能</span>
+        </div>
+        
+        <div class="feature-grid">
+            <div class="feature-card admin-card" onclick="location.href='/settings'">
+                <div class="icon">⚙️</div>
+                <h3>系統設定</h3>
+                <p>通知時間設定</p>
+            </div>
+            
+            <div class="feature-card admin-card" onclick="location.href='/line-settings'">
+                <div class="icon">🤖</div>
+                <h3>LINE Bot 設定</h3>
+                <p>自動提醒設定</p>
             </div>
         </div>
 
@@ -111,8 +128,15 @@
                 const statsEl = document.getElementById('stats');
                 if (statsEl) {
                     statsEl.innerHTML = `
-                        <div class="stat-item">📦 庫存 ${data.total} 件</div>
-                        <div class="stat-item">📝 今日 ${data.today} 件</div>
+                        <div class="stat-item">
+                            <span class="stat-number">${data.total}</span>
+                            <span class="stat-label">庫存商品</span>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <span class="stat-number">${data.today}</span>
+                            <span class="stat-label">今日登記</span>
+                        </div>
                     `;
                 }
                 
@@ -123,9 +147,12 @@
                     if (totalUrgent > 0) {
                         alertCard.classList.remove('hidden');
                         alertCard.querySelector('.alert-content h3').textContent = 
-                            `今天有 ${totalUrgent} 個商品需要處理`;
-                        alertCard.querySelector('.alert-content p').textContent = 
-                            `${data.expired > 0 ? data.expired + ' 個已過期、' : ''}${data.expiring > 0 ? data.expiring + ' 個即將到期' : ''}`;
+                            `⚠️ 有 ${totalUrgent} 個商品需要處理！`;
+                        
+                        let subText = [];
+                        if (data.expired > 0) subText.push(`${data.expired} 個已過期`);
+                        if (data.expiring > 0) subText.push(`${data.expiring} 個即將到期`);
+                        alertCard.querySelector('.alert-content p').textContent = subText.join('、');
                     }
                 }
             } catch (error) {
