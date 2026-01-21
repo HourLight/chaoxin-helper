@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#F7941D">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>潮欣小幫手 2.0</title>
+    <title>潮欣小幫手</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏪</text></svg>">
 </head>
@@ -19,8 +19,8 @@
             <div class="stripe-red"></div>
         </div>
         <div class="header-content">
-            <h1>🏪 潮欣小幫手 <span style="font-size: 0.5em; background: linear-gradient(135deg, #FF6B35, #9B59B6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">2.0</span></h1>
-            <p class="subtitle">效期管理 × 職場療癒夥伴</p>
+            <h1>🏪 潮欣小幫手</h1>
+            <p class="subtitle">便利商店生鮮品效期管理</p>
         </div>
     </header>
 
@@ -47,34 +47,7 @@
             </div>
         </div>
 
-        <!-- 🎮 2.0 遊戲化功能區塊 -->
-        <div class="section-header gamification">
-            <span class="section-icon">🎮</span>
-            <span class="section-title">2.0 新功能</span>
-            <span class="badge-new">NEW</span>
-        </div>
-        
-        <div class="feature-grid">
-            <div class="feature-card gamification-card" onclick="location.href='/fortune'">
-                <div class="icon">🎴</div>
-                <h3>抽幸運籤</h3>
-                <p>每日療癒小語</p>
-            </div>
-            
-            <div class="feature-card gamification-card" onclick="location.href='/achievements'">
-                <div class="icon">🏆</div>
-                <h3>成就徽章</h3>
-                <p>收集專屬榮耀</p>
-            </div>
-            
-            <div class="feature-card gamification-card" onclick="location.href='/dashboard'">
-                <div class="icon">📊</div>
-                <h3>數據儀表板</h3>
-                <p>進度、排行榜</p>
-            </div>
-        </div>
-
-        <!-- 主要功能區塊 -->
+        <!-- 主要功能區塊（效期管理優先！） -->
         <div class="section-header">
             <span class="section-icon">⭐</span>
             <span class="section-title">效期管理</span>
@@ -106,24 +79,78 @@
             </div>
         </div>
 
-        <!-- 管理員專屬區塊 -->
-        <div class="section-header admin">
-            <span class="section-icon">🔐</span>
-            <span class="section-title">管理員功能</span>
+        <!-- 🎮 遊戲化功能區塊 -->
+        <div class="section-header gamification">
+            <span class="section-icon">🎮</span>
+            <span class="section-title">加油打氣站</span>
+            <span class="badge-new">NEW</span>
         </div>
         
         <div class="feature-grid">
-            <div class="feature-card admin-card" onclick="location.href='/settings'">
-                <div class="icon">⚙️</div>
-                <h3>系統設定</h3>
-                <p>通知時間設定</p>
+            <div class="feature-card gamification-card" onclick="location.href='/fortune'">
+                <div class="icon">🎴</div>
+                <h3>抽幸運籤</h3>
+                <p>每日好運小語</p>
             </div>
             
-            <div class="feature-card admin-card" onclick="location.href='/line-settings'">
-                <div class="icon">🤖</div>
-                <h3>LINE Bot 設定</h3>
-                <p>自動提醒設定</p>
+            <div class="feature-card gamification-card" onclick="location.href='/achievements'">
+                <div class="icon">🏆</div>
+                <h3>成就徽章</h3>
+                <p>收集專屬榮耀</p>
             </div>
+            
+            <div class="feature-card gamification-card" onclick="location.href='/dashboard'">
+                <div class="icon">📊</div>
+                <h3>數據儀表板</h3>
+                <p>進度、排行榜</p>
+            </div>
+        </div>
+
+        <!-- 📖 說明中心 -->
+        <div class="section-header">
+            <span class="section-icon">📖</span>
+            <span class="section-title">說明中心</span>
+        </div>
+        
+        <div class="feature-grid">
+            <div class="feature-card" onclick="location.href='/pages/help.html'">
+                <div class="icon">📱</div>
+                <h3>使用說明</h3>
+                <p>三分鐘快速上手</p>
+            </div>
+            
+            <div class="feature-card gamification-card" onclick="location.href='/pages/game-guide.html'">
+                <div class="icon">🎮</div>
+                <h3>遊戲說明</h3>
+                <p>簽到、抽籤、徽章</p>
+            </div>
+        </div>
+
+        <!-- 管理員專屬區塊（預設隱藏） -->
+        <div id="adminSection" style="display: none;">
+            <div class="section-header admin">
+                <span class="section-icon">🔐</span>
+                <span class="section-title">管理員功能</span>
+            </div>
+            
+            <div class="feature-grid">
+                <div class="feature-card admin-card" onclick="location.href='/settings'">
+                    <div class="icon">⚙️</div>
+                    <h3>系統設定</h3>
+                    <p>通知時間設定</p>
+                </div>
+                
+                <div class="feature-card admin-card" onclick="location.href='/line-settings'">
+                    <div class="icon">🤖</div>
+                    <h3>LINE Bot 設定</h3>
+                    <p>自動提醒設定</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理員入口（小小的，不顯眼） -->
+        <div style="text-align: center; margin-top: 20px;">
+            <span id="adminToggle" style="font-size: 0.7rem; color: var(--text-hint); cursor: pointer;">🔐</span>
         </div>
 
         <!-- Footer -->
@@ -133,8 +160,8 @@
                 <div class="stripe-green"></div>
                 <div class="stripe-red"></div>
             </div>
-            <p style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">潮欣小幫手 v2.0.0</p>
-            <p style="margin-bottom: 12px;">效期管理 × 職場療癒夥伴 🧡</p>
+            <p style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">潮欣小幫手 v1.0.0</p>
+            <p style="margin-bottom: 12px;">Always Open, Always Fresh 🧡</p>
             <div style="border-top: 1px solid var(--gray-300); padding-top: 12px; font-size: 0.7rem; color: var(--text-hint); line-height: 1.6;">
                 <p>便利商店生鮮品效期管理系統</p>
                 <p style="margin-top: 4px;">© 2026 王逸君 版權所有</p>
@@ -186,8 +213,43 @@
                 console.error('載入失敗:', error);
             }
         }
+
+        // 管理員功能：檢查是否已驗證
+        function checkAdmin() {
+            const isAdmin = localStorage.getItem('chaoxin_admin') === 'true';
+            if (isAdmin) {
+                document.getElementById('adminSection').style.display = 'block';
+                document.getElementById('adminToggle').textContent = '🔓 管理員模式';
+            }
+        }
+
+        // 管理員入口：點擊小鎖頭
+        document.getElementById('adminToggle').addEventListener('click', function() {
+            const isAdmin = localStorage.getItem('chaoxin_admin') === 'true';
+            
+            if (isAdmin) {
+                // 已經是管理員，點擊可以登出
+                if (confirm('要離開管理員模式嗎？')) {
+                    localStorage.removeItem('chaoxin_admin');
+                    document.getElementById('adminSection').style.display = 'none';
+                    this.textContent = '🔐';
+                }
+            } else {
+                // 輸入密碼
+                const pwd = prompt('請輸入管理員密碼：');
+                if (pwd === 'chaoxin2026') {  // 簡單密碼，可以改
+                    localStorage.setItem('chaoxin_admin', 'true');
+                    document.getElementById('adminSection').style.display = 'block';
+                    this.textContent = '🔓 管理員模式';
+                    alert('✅ 管理員模式已開啟！');
+                } else if (pwd !== null) {
+                    alert('❌ 密碼錯誤');
+                }
+            }
+        });
         
         init();
+        checkAdmin();
     </script>
 </body>
 </html>
