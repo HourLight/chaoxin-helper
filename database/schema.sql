@@ -99,6 +99,8 @@ CREATE TABLE IF NOT EXISTS user_stats (
     level INTEGER DEFAULT 1,               -- 等級（1-5）
     streak_days INTEGER DEFAULT 0,         -- 連續簽到天數
     last_checkin DATE,                     -- 最後簽到日期
+    night_streak INTEGER DEFAULT 0,        -- 凌晨時段連續簽到天數（0:00-6:00）
+    early_streak INTEGER DEFAULT 0,        -- 早班時段連續簽到天數（6:00-9:00）
     lucky_value INTEGER DEFAULT 0,         -- 幸運值（用於保底機制）
     total_draws INTEGER DEFAULT 0,         -- 總抽籤次數
     total_registrations INTEGER DEFAULT 0, -- 總登記次數
@@ -172,5 +174,6 @@ INSERT OR IGNORE INTO badges (code, name, description, icon, rarity, condition_t
 ('draw_50', '🎴 命運占卜師', '累積抽籤 50 次', '🎴', 'SR', 'draw', 50, 100),
 ('level_3', '⭐ 效期達人', '達到 Lv.3', '⭐', 'SR', 'level', 3, 100),
 ('level_5', '👑 傳奇守護者', '達到 Lv.5', '👑', 'SSR', 'level', 5, 300),
-('night_owl', '🌙 夜行者', '大夜班連續工作 7 天', '🌙', 'SR', 'special', 0, 150),
-('early_bird', '🌅 早起鳥', '連續 7 天在早上 6 點前簽到', '🌅', 'SR', 'special', 0, 150);
+('night_owl_7', '🌙 夜貓新手', '凌晨時段（0-6點）連續簽到 7 天', '🌙', 'SR', 'special', 7, 150),
+('night_owl_30', '🌙 夜行者', '凌晨時段（0-6點）連續簽到 30 天', '🌙', 'SSR', 'special', 30, 500),
+('early_bird', '🌅 早起鳥', '早班時段（6-9點）連續簽到 7 天', '🌅', 'SR', 'special', 7, 150);
