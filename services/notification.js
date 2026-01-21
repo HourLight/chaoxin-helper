@@ -44,6 +44,30 @@ module.exports = function(db) {
     }
 
     /**
+     * 取得明天到期的商品
+     */
+    function getTomorrowExpiringItems() {
+        const items = db.prepare(`
+            SELECT 
+                i.id,
+                i.quantity,
+                i.expiry_date,
+                i.created_at,
+                p.barcode,
+                p.name,
+                p.category,
+                p.storage_temp
+            FROM inventory i
+            JOIN products p ON i.product_id = p.id
+            WHERE i.status = 'in_stock'
+            AND date(i.expiry_date) = date('now', '+1 day')
+            ORDER BY i.expiry_date ASC
+        `).all();
+
+        return items;
+    }
+
+    /**
      * 發送效期提醒
      */
     async function sendExpiryNotifications(baseUrl = null) {
@@ -92,6 +116,55 @@ module.exports = function(db) {
     }
 
     /**
+     * 發送明天到期商品提醒（可愛俏皮版）
+     */
+    async function sendTomorrowExpiryNotifications(baseUrl = null) {
+        const settings = getNotificationSettings();
+        
+        // 檢查是否啟用通知
+        if (settings.notification_enabled !== 'true') {
+            console.log('通知功能已停用');
+            return { success: false, message: '通知功能已停用' };
+        }
+
+        const items = getTomorrowExpiringItems();
+        const client = lineBot.getClient();
+        const lineSettings = lineBot.getLineSettings();
+        
+        let groupId = process.env.LINE_GROUP_ID;
+        if (lineSettings && lineSettings.group_id) {
+            groupId = lineSettings.group_id;
+        }
+
+        if (!client || !groupId) {
+            return { success: false, error: 'LINE Bot 未設定' };
+        }
+
+        let message;
+        if (items.length === 0) {
+            message = `✨ 明天沒有商品要到期喔～\n\n但還是去巡一下貨架比較安心啦！😊`;
+        } else {
+            const itemList = items.slice(0, 10).map((item, i) => 
+                `  ${i+1}. ${item.name}（${item.quantity}個）`
+            ).join('\n');
+            
+            message = `💡 明天有 ${items.length} 個商品要到期：\n\n${itemList}\n\n先記下來，明天別忘了處理喔～ 📝`;
+        }
+
+        try {
+            await client.pushMessage({
+                to: groupId,
+                messages: [{ type: 'text', text: message }]
+            });
+            
+            return { success: true, count: items.length };
+        } catch (error) {
+            console.error('發送明天到期提醒失敗:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
      * 取得已過期但未處理的商品
      */
     function getExpiredItems() {
@@ -113,7 +186,7 @@ module.exports = function(db) {
     }
 
     /**
-     * 發送已過期商品提醒
+     * 發送已過期商品提醒（可愛俏皮版）
      */
     async function sendExpiredNotifications(baseUrl = null) {
         const items = getExpiredItems();
@@ -130,11 +203,12 @@ module.exports = function(db) {
         }
 
         try {
+            const itemList = items.slice(0, 5).map(i => `• ${i.name}`).join('\n');
             await client.pushMessage({
                 to: settings.group_id,
                 messages: [{
                     type: 'text',
-                    text: `🚨 緊急！有 ${items.length} 個商品已經過期！\n\n請立即處理：\n${items.map(i => `• ${i.name}`).join('\n')}\n\n👉 請儘速下架處理`
+                    text: `🚨 哎呀！有 ${items.length} 個商品過期了！\n\n${itemList}\n\n趕快去下架處理一下吧～ 💨`
                 }]
             });
 
@@ -148,8 +222,10 @@ module.exports = function(db) {
     return {
         getNotificationSettings,
         getExpiringItems,
+        getTomorrowExpiringItems,
         getExpiredItems,
         sendExpiryNotifications,
+        sendTomorrowExpiryNotifications,
         sendExpiredNotifications
     };
 };

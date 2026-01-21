@@ -1,7 +1,7 @@
 /**
  * LINE Bot 服務
  * 處理 LINE 訊息和互動
- * 潮欣小幫手 v2.0.0
+ * 潮欣小幫手 v1.0.0
  */
 
 const line = require('@line/bot-sdk');
@@ -74,6 +74,7 @@ async function handleEvent(event) {
         const action = data.get('action');
         const inventoryId = data.get('id');
 
+        // ===== 處理「已下架」按鈕 =====
         if (action === 'remove' && inventoryId) {
             // 標記商品為已下架
             const stmt = db.prepare(`
@@ -92,7 +93,7 @@ async function handleEvent(event) {
 
             const productName = item ? item.name : '商品';
 
-// 回覆確認訊息
+            // 回覆確認訊息
             await client.replyMessage({
                 replyToken: event.replyToken,
                 messages: [{
@@ -100,9 +101,237 @@ async function handleEvent(event) {
                     text: `✅ 已標記「${productName}」為「已下架」，不會再收到提醒囉！\n\n辛苦了～繼續加油 💪`
                 }]
             });
+            return null;
+        }
+
+        // ===== 處理「確認登記」按鈕 =====
+        if (action === 'confirm_register') {
+            const barcode = data.get('barcode') || null;
+            const name = data.get('name');
+            const expiry = data.get('expiry');
+            const temp = data.get('temp') || 'refrigerated';
+            const category = data.get('category') || null;
+            const quantity = parseInt(data.get('qty')) || 1;
+            const userId = event.source.userId;
+
+            if (!name || !expiry) {
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ type: 'text', text: '😅 缺少必要資訊（商品名稱或效期），請到網頁手動登記喔～' }]
+                });
+                return null;
+            }
+
+            try {
+                // 查找或建立商品
+                let productId = null;
+                
+                if (barcode) {
+                    const existing = db.prepare('SELECT id FROM products WHERE barcode = ?').get(barcode);
+                    if (existing) {
+                        productId = existing.id;
+                    }
+                }
+
+                if (!productId) {
+                    // 建立新商品
+                    const stmt = db.prepare(`
+                        INSERT INTO products (barcode, name, category, storage_temp)
+                        VALUES (?, ?, ?, ?)
+                    `);
+                    const result = stmt.run(barcode, name, category, temp);
+                    productId = result.lastInsertRowid;
+                }
+
+                // 建立庫存記錄
+                const invStmt = db.prepare(`
+                    INSERT INTO inventory (product_id, quantity, expiry_date, status)
+                    VALUES (?, ?, ?, 'in_stock')
+                `);
+                invStmt.run(productId, quantity, expiry);
+
+                // 給 XP 獎勵
+                if (userId) {
+                    try {
+                        gamificationService.addXP(userId, 20, 'product_register', `LINE 登記: ${name}`);
+                    } catch (e) {
+                        console.error('XP 獎勵失敗:', e);
+                    }
+                }
+
+                // 計算效期倒數
+                const expiryDate = new Date(expiry);
+                const now = new Date();
+                const diffTime = expiryDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                let expiryText = '';
+                if (diffDays < 0) {
+                    expiryText = `（已過期 ${Math.abs(diffDays)} 天）`;
+                } else if (diffDays === 0) {
+                    expiryText = '（今天到期！）';
+                } else if (diffDays === 1) {
+                    expiryText = '（明天到期）';
+                } else {
+                    expiryText = `（還有 ${diffDays} 天）`;
+                }
+
+                // 回覆成功訊息
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{
+                        type: 'flex',
+                        altText: '🎉 登記成功！',
+                        contents: {
+                            type: 'bubble',
+                            size: 'kilo',
+                            header: {
+                                type: 'box',
+                                layout: 'vertical',
+                                backgroundColor: '#1DB446',
+                                paddingAll: '12px',
+                                contents: [{
+                                    type: 'text',
+                                    text: '🎉 登記成功！',
+                                    color: '#FFFFFF',
+                                    weight: 'bold',
+                                    size: 'md'
+                                }]
+                            },
+                            body: {
+                                type: 'box',
+                                layout: 'vertical',
+                                spacing: 'sm',
+                                contents: [
+                                    {
+                                        type: 'text',
+                                        text: name,
+                                        weight: 'bold',
+                                        size: 'lg',
+                                        wrap: true
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: `📅 效期：${new Date(expiry).toLocaleDateString('zh-TW')} ${expiryText}`,
+                                        size: 'sm',
+                                        color: diffDays <= 1 ? '#E74C3C' : '#666666'
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: `📦 數量：${quantity}`,
+                                        size: 'sm',
+                                        color: '#666666'
+                                    },
+                                    {
+                                        type: 'separator',
+                                        margin: 'md'
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: '辛苦了！+20 XP ⭐',
+                                        size: 'sm',
+                                        color: '#9B59B6',
+                                        margin: 'md'
+                                    }
+                                ]
+                            }
+                        }
+                    }]
+                });
+
+            } catch (error) {
+                console.error('LINE 登記失敗:', error);
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ type: 'text', text: `😅 登記失敗：${error.message}\n請到網頁手動登記喔～` }]
+                });
+            }
+            return null;
+        }
+
+        // ===== 處理「修改數量」按鈕 =====
+        if (action === 'change_qty') {
+            const barcode = data.get('barcode') || '';
+            const name = data.get('name');
+            const expiry = data.get('expiry');
+            const temp = data.get('temp') || 'refrigerated';
+            const category = data.get('category') || '';
+
+            // 發送數量選擇卡片
+            await client.replyMessage({
+                replyToken: event.replyToken,
+                messages: [{
+                    type: 'flex',
+                    altText: '選擇數量',
+                    contents: createQuantitySelector(barcode, name, expiry, temp, category)
+                }]
+            });
+            return null;
         }
 
         return null;
+    }
+
+    /**
+     * 建立數量選擇器 Flex Message
+     */
+    function createQuantitySelector(barcode, name, expiry, temp, category) {
+        const quantities = [1, 2, 3, 5, 10];
+        const buttons = quantities.map(qty => ({
+            type: 'button',
+            style: 'secondary',
+            height: 'sm',
+            action: {
+                type: 'postback',
+                label: `${qty} 個`,
+                data: `action=confirm_register&barcode=${encodeURIComponent(barcode)}&name=${encodeURIComponent(name)}&expiry=${encodeURIComponent(expiry)}&temp=${temp}&category=${encodeURIComponent(category)}&qty=${qty}`
+            }
+        }));
+
+        return {
+            type: 'bubble',
+            size: 'kilo',
+            header: {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#F7941D',
+                paddingAll: '12px',
+                contents: [{
+                    type: 'text',
+                    text: '📦 選擇數量',
+                    color: '#FFFFFF',
+                    weight: 'bold',
+                    size: 'md'
+                }]
+            },
+            body: {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'sm',
+                contents: [
+                    {
+                        type: 'text',
+                        text: name,
+                        weight: 'bold',
+                        size: 'md',
+                        wrap: true
+                    },
+                    {
+                        type: 'box',
+                        layout: 'horizontal',
+                        spacing: 'sm',
+                        margin: 'md',
+                        contents: buttons.slice(0, 3)
+                    },
+                    {
+                        type: 'box',
+                        layout: 'horizontal',
+                        spacing: 'sm',
+                        margin: 'sm',
+                        contents: [...buttons.slice(3), { type: 'filler' }]
+                    }
+                ]
+            }
+        };
     }
 
     /**
@@ -125,79 +354,48 @@ async function handleEvent(event) {
             // 進行 AI 辨識
             const result = await aiRecognition.recognizeFromLineImage(messageId);
 
-            // 組織回覆訊息
-            let message = '✨ 辨識結果：\n\n';
-            const params = new URLSearchParams();
+            // 取得辨識資料
+            const barcode = result.barcode?.value || '';
+            const name = result.name?.value || '';
+            const expiry = result.expiry_date?.value || '';
+            const temp = result.storage_temp || 'refrigerated';
+            const category = result.category || '';
 
-            // 條碼
-            if (result.barcode && result.barcode.value) {
-                const conf = aiRecognition.getConfidenceLevel(result.barcode.confidence);
-                message += `📦 條碼：${result.barcode.value} ${conf.icon}\n`;
-                params.append('barcode', result.barcode.value);
+            // 如果沒有辨識到商品名或效期，回覆錯誤
+            if (!name && !expiry) {
+                const targetId = event.source.groupId || event.source.userId;
+                await client.pushMessage({
+                    to: targetId,
+                    messages: [{
+                        type: 'text',
+                        text: `😅 沒有辨識到商品資訊\n\n請確保照片中有：\n📦 商品名稱\n📅 有效期限\n\n或到網頁手動登記：\n${baseUrl}/smart-register`
+                    }]
+                });
+                return null;
             }
 
-            // 商品名稱
-            if (result.name && result.name.value) {
-                const conf = aiRecognition.getConfidenceLevel(result.name.confidence);
-                message += `🏷️ 商品：${result.name.value} ${conf.icon}\n`;
-                params.append('name', result.name.value);
-            }
-
-            // 效期
-            if (result.expiry_date && result.expiry_date.value) {
-                const conf = aiRecognition.getConfidenceLevel(result.expiry_date.confidence);
-                const displayDate = new Date(result.expiry_date.value).toLocaleDateString('zh-TW');
-                message += `📅 效期：${displayDate} ${conf.icon}\n`;
-                if (result.expiry_date.original_text) {
-                    message += `   （原始：${result.expiry_date.original_text}）\n`;
-                }
-                params.append('expiry', result.expiry_date.value);
-            }
-
-            // 溫層
-            if (result.storage_temp) {
-                const tempMap = {
-                    'refrigerated': '❄️ 冷藏',
-                    'frozen': '🧊 冷凍',
-                    'room_temp': '🌡️ 常溫'
-                };
-                message += `🌡️ 溫層：${tempMap[result.storage_temp] || '冷藏'}\n`;
-                params.append('temp', result.storage_temp);
-            }
-
-            // 分類
-            if (result.category) {
-                message += `📁 分類：${result.category}\n`;
-                params.append('category', result.category);
-            }
-
-            // 備註
-            if (result.notes) {
-                message += `\n💡 備註：${result.notes}\n`;
-            }
-
-            // 模擬模式提示
+            // 如果是模擬模式
             if (result.mock) {
-                message += '\n⚠️ 目前為模擬模式，請到網頁手動登記';
+                const targetId = event.source.groupId || event.source.userId;
+                await client.pushMessage({
+                    to: targetId,
+                    messages: [{
+                        type: 'text',
+                        text: `⚠️ 目前為模擬模式\n\n請到網頁手動登記：\n${baseUrl}/smart-register`
+                    }]
+                });
+                return null;
             }
 
-            // 有辨識到資料，提供快速登記連結
-            if (params.toString()) {
-                message += '\n━━━━━━━━━━\n';
-                message += '\n👆 確認資訊正確後\n';
-                message += '👉 點這裡完成登記：\n';
-                message += `${baseUrl}/smart-register?${params.toString()}`;
-            } else {
-                message += '\n😅 沒有辨識到完整資訊\n';
-                message += '請到網頁手動登記：\n';
-                message += `${baseUrl}/smart-register`;
-            }
-
-            // 發送辨識結果（用 pushMessage 因為已經用掉 replyToken）
+            // 發送辨識結果 Flex Message（帶確認按鈕）
             const targetId = event.source.groupId || event.source.userId;
             await client.pushMessage({
                 to: targetId,
-                messages: [{ type: 'text', text: message }]
+                messages: [{
+                    type: 'flex',
+                    altText: `辨識結果：${name || '商品'}`,
+                    contents: createRecognitionResultCard(result, baseUrl)
+                }]
             });
 
         } catch (error) {
@@ -208,12 +406,199 @@ async function handleEvent(event) {
                 to: targetId,
                 messages: [{
                     type: 'text',
-                    text: `😅 辨識失敗了...\n\n錯誤：${error.message}\n\n請到網頁手動登記：\n${baseUrl}/pages/smart-register.html`
+                    text: `😅 辨識失敗了...\n\n錯誤：${error.message}\n\n請到網頁手動登記：\n${baseUrl}/smart-register`
                 }]
             });
         }
 
         return null;
+    }
+
+    /**
+     * 建立辨識結果卡片（含確認登記按鈕）
+     */
+    function createRecognitionResultCard(result, baseUrl) {
+        const barcode = result.barcode?.value || '';
+        const name = result.name?.value || '未知商品';
+        const expiry = result.expiry_date?.value || '';
+        const temp = result.storage_temp || 'refrigerated';
+        const category = result.category || '';
+
+        const tempMap = {
+            'refrigerated': '❄️ 冷藏',
+            'frozen': '🧊 冷凍',
+            'room_temp': '🌡️ 常溫'
+        };
+
+        // 計算效期倒數
+        let expiryDisplay = '未辨識';
+        let expiryColor = '#666666';
+        if (expiry) {
+            const expiryDate = new Date(expiry);
+            const now = new Date();
+            const diffDays = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+            expiryDisplay = expiryDate.toLocaleDateString('zh-TW');
+            if (diffDays <= 0) {
+                expiryDisplay += ' ⚠️ 已過期';
+                expiryColor = '#E74C3C';
+            } else if (diffDays <= 1) {
+                expiryDisplay += ' ⚠️ 明天到期';
+                expiryColor = '#E74C3C';
+            } else if (diffDays <= 3) {
+                expiryDisplay += ` (${diffDays}天)`;
+                expiryColor = '#F39C12';
+            } else {
+                expiryDisplay += ` (${diffDays}天)`;
+            }
+        }
+
+        // 信心度顯示
+        const getConfIcon = (conf) => {
+            if (!conf) return '';
+            if (conf >= 0.8) return ' ✅';
+            if (conf >= 0.5) return ' ⚠️';
+            return ' ❓';
+        };
+
+        const contents = [];
+
+        // 商品名稱
+        contents.push({
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+                { type: 'text', text: '🏷️ 商品', size: 'sm', color: '#888888', flex: 2 },
+                { type: 'text', text: name + getConfIcon(result.name?.confidence), size: 'sm', weight: 'bold', flex: 5, wrap: true }
+            ]
+        });
+
+        // 效期
+        contents.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'sm',
+            contents: [
+                { type: 'text', text: '📅 效期', size: 'sm', color: '#888888', flex: 2 },
+                { type: 'text', text: expiryDisplay + getConfIcon(result.expiry_date?.confidence), size: 'sm', color: expiryColor, flex: 5 }
+            ]
+        });
+
+        // 條碼（如果有）
+        if (barcode) {
+            contents.push({
+                type: 'box',
+                layout: 'horizontal',
+                margin: 'sm',
+                contents: [
+                    { type: 'text', text: '📦 條碼', size: 'sm', color: '#888888', flex: 2 },
+                    { type: 'text', text: barcode + getConfIcon(result.barcode?.confidence), size: 'sm', flex: 5 }
+                ]
+            });
+        }
+
+        // 溫層
+        contents.push({
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'sm',
+            contents: [
+                { type: 'text', text: '🌡️ 溫層', size: 'sm', color: '#888888', flex: 2 },
+                { type: 'text', text: tempMap[temp] || '冷藏', size: 'sm', flex: 5 }
+            ]
+        });
+
+        // 建立 postback data
+        const postbackData = `action=confirm_register&barcode=${encodeURIComponent(barcode)}&name=${encodeURIComponent(name)}&expiry=${encodeURIComponent(expiry)}&temp=${temp}&category=${encodeURIComponent(category)}&qty=1`;
+        const changeQtyData = `action=change_qty&barcode=${encodeURIComponent(barcode)}&name=${encodeURIComponent(name)}&expiry=${encodeURIComponent(expiry)}&temp=${temp}&category=${encodeURIComponent(category)}`;
+
+        // 建立網頁連結
+        const params = new URLSearchParams();
+        if (barcode) params.append('barcode', barcode);
+        if (name) params.append('name', name);
+        if (expiry) params.append('expiry', expiry);
+        if (temp) params.append('temp', temp);
+        if (category) params.append('category', category);
+        const webUrl = `${baseUrl}/smart-register?${params.toString()}`;
+
+        return {
+            type: 'bubble',
+            size: 'mega',
+            header: {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#F7941D',
+                paddingAll: '15px',
+                contents: [
+                    {
+                        type: 'text',
+                        text: '✨ 辨識完成！',
+                        color: '#FFFFFF',
+                        weight: 'bold',
+                        size: 'lg'
+                    },
+                    {
+                        type: 'text',
+                        text: '確認資訊無誤後，點擊下方按鈕登記',
+                        color: '#FFFFFF',
+                        size: 'xs',
+                        margin: 'sm'
+                    }
+                ]
+            },
+            body: {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'md',
+                paddingAll: '15px',
+                contents: contents
+            },
+            footer: {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'sm',
+                paddingAll: '15px',
+                contents: [
+                    {
+                        type: 'box',
+                        layout: 'horizontal',
+                        spacing: 'sm',
+                        contents: [
+                            {
+                                type: 'button',
+                                style: 'primary',
+                                color: '#1DB446',
+                                action: {
+                                    type: 'postback',
+                                    label: '✅ 確認登記',
+                                    data: postbackData
+                                },
+                                flex: 2
+                            },
+                            {
+                                type: 'button',
+                                style: 'secondary',
+                                action: {
+                                    type: 'postback',
+                                    label: '📦 改數量',
+                                    data: changeQtyData
+                                },
+                                flex: 1
+                            }
+                        ]
+                    },
+                    {
+                        type: 'button',
+                        style: 'link',
+                        height: 'sm',
+                        action: {
+                            type: 'uri',
+                            label: '✏️ 去網頁修改更多',
+                            uri: webUrl
+                        }
+                    }
+                ]
+            }
+        };
     }
        
     /**
@@ -558,19 +943,55 @@ async function handleEvent(event) {
                     replyToken: event.replyToken,
                     messages: [{
                         type: 'text',
-                        text: `✨ 太棒了！今天沒有商品到期喔～\n\n繼續保持！💪`
+                        text: `🎉 耶！今天沒有商品要到期～\n\n你超棒的，繼續保持喔！✨`
                     }]
                 });
             } else {
                 let itemList = todayItems.map((item, i) => 
-                    `${i+1}. ${item.name}（${item.quantity}個）`
+                    `  ${i+1}. ${item.name}（${item.quantity}個）`
                 ).join('\n');
 
                 await client.replyMessage({
                     replyToken: event.replyToken,
                     messages: [{
                         type: 'text',
-                        text: `⚠️ 今天有 ${todayItems.length} 個商品到期：\n\n${itemList}\n\n👉 前往處理：\n${baseUrl}/inventory`
+                        text: `📢 今天有 ${todayItems.length} 個商品要到期囉～\n\n${itemList}\n\n記得去處理一下喔！💪\n${baseUrl}/inventory`
+                    }]
+                });
+            }
+            return;
+        }
+
+        // ===== 明天到期 =====
+        if (text.includes('明天') || text.includes('明日')) {
+            const tomorrowItems = db.prepare(`
+                SELECT p.name, i.expiry_date, i.quantity, p.storage_temp
+                FROM inventory i
+                JOIN products p ON i.product_id = p.id
+                WHERE i.status = 'in_stock' 
+                AND date(i.expiry_date) = date('now', '+1 day')
+                ORDER BY i.expiry_date ASC
+                LIMIT 10
+            `).all();
+
+            if (tomorrowItems.length === 0) {
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{
+                        type: 'text',
+                        text: `✨ 明天沒有商品要到期喔～\n\n但還是去巡一下貨架比較安心啦！😊`
+                    }]
+                });
+            } else {
+                let itemList = tomorrowItems.map((item, i) => 
+                    `  ${i+1}. ${item.name}（${item.quantity}個）`
+                ).join('\n');
+
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{
+                        type: 'text',
+                        text: `💡 明天有 ${tomorrowItems.length} 個商品要到期：\n\n${itemList}\n\n先記下來，明天別忘了處理喔～ 📝`
                     }]
                 });
             }
@@ -963,10 +1384,10 @@ async function handleEvent(event) {
 
         const messages = [];
 
-        // 文字提醒
+        // 文字提醒（可愛俏皮版）
         messages.push({
             type: 'text',
-            text: `⚠️ 效期提醒！\n\n有 ${items.length} 個商品即將在 24 小時內到期，請儘速處理！`
+            text: `📢 叮咚～效期小提醒！\n\n有 ${items.length} 個商品快到期囉，記得去處理一下 💪`
         });
 
         // 為每個商品建立 Flex Message 卡片
