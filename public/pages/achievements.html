@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 成就徽章 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .achievements-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #FF6B35, #FF8C5A);
+            color: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .stats-card h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .badge-section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-left: 10px;
+            border-left: 4px solid #FF6B35;
+        }
+        .badge-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .badge-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .badge-card:hover {
+            transform: translateY(-3px);
+        }
+        .badge-card.locked {
+            opacity: 0.5;
+            filter: grayscale(100%);
+        }
+        .badge-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        .badge-name {
+            font-weight: bold;
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+        }
+        .badge-desc {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .badge-rarity {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            margin-top: 8px;
+        }
+        .rarity-SSR { background: linear-gradient(135deg, #FFD700, #FFA500); color: #333; }
+        .rarity-SR { background: linear-gradient(135deg, #9B59B6, #8E44AD); color: white; }
+        .rarity-R { background: linear-gradient(135deg, #3498DB, #2980B9); color: white; }
+        .rarity-N { background: #95a5a6; color: white; }
+        .progress-bar {
+            background: #eee;
+            border-radius: 10px;
+            height: 8px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #FF6B35, #00C853);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s;
+        }
+        .back-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #f0f0f0;
+            color: #333;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="achievements-container">
+        <a href="/" class="back-btn">← 返回首頁</a>
+        
+        <div class="stats-card">
+            <h2>🏆 我的成就</h2>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-value" id="total-xp">0</div>
+                    <div class="stat-label">總 XP</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="level">Lv.1</div>
+                    <div class="stat-label" id="level-name">見習店員</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="badge-count">0</div>
+                    <div class="stat-label">已獲徽章</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="badges-container" class="loading">
+            載入中...
+        </div>
+    </div>
+
+    <script>
+        // 模擬用戶 ID（實際應從 LINE LIFF 取得）
+        const userId = 'demo_user';
+
+        // 載入成就資料
+        async function loadAchievements() {
+            try {
+                // 載入用戶統計
+                const statsRes = await fetch(`/api/game/stats/${userId}`);
+                if (statsRes.ok) {
+                    const stats = await statsRes.json();
+                    document.getElementById('total-xp').textContent = stats.total_xp || 0;
+                    document.getElementById('level').textContent = `Lv.${stats.level || 1}`;
+                    document.getElementById('level-name').textContent = stats.levelName || '見習店員';
+                }
+
+                // 載入徽章
+                const badgesRes = await fetch(`/api/game/badges/${userId}`);
+                if (badgesRes.ok) {
+                    const data = await badgesRes.json();
+                    renderBadges(data);
+                } else {
+                    throw new Error('無法載入徽章');
+                }
+            } catch (error) {
+                console.error('載入失敗:', error);
+                document.getElementById('badges-container').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <p>📭 目前還沒有成就資料</p>
+                        <p style="font-size: 0.9rem;">開始使用潮欣小幫手，解鎖你的第一個徽章吧！</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderBadges(data) {
+            const { earned = [], all = [] } = data;
+            const earnedCodes = new Set(earned.map(b => b.code));
+            
+            document.getElementById('badge-count').textContent = earned.length;
+
+            // 分類徽章
+            const categories = {
+                '🎯 登記成就': all.filter(b => b.condition_type === 'register'),
+                '🛡️ 下架成就': all.filter(b => b.condition_type === 'remove'),
+                '🔥 連續簽到': all.filter(b => b.condition_type === 'streak'),
+                '⭐ 等級成就': all.filter(b => b.condition_type === 'level'),
+                '🎴 抽籤成就': all.filter(b => b.condition_type === 'draw'),
+                '🌙 隱藏成就': all.filter(b => b.condition_type === 'special')
+            };
+
+            let html = '';
+            for (const [title, badges] of Object.entries(categories)) {
+                if (badges.length === 0) continue;
+                
+                html += `
+                    <div class="badge-section">
+                        <div class="section-title">${title}</div>
+                        <div class="badge-grid">
+                `;
+                
+                for (const badge of badges) {
+                    const isEarned = earnedCodes.has(badge.code);
+                    html += `
+                        <div class="badge-card ${isEarned ? '' : 'locked'}">
+                            <div class="badge-icon">${badge.icon || '🏅'}</div>
+                            <div class="badge-name">${badge.name}</div>
+                            <div class="badge-desc">${badge.description}</div>
+                            <span class="badge-rarity rarity-${badge.rarity}">${badge.rarity}</span>
+                            ${isEarned ? '<div style="color: #00C853; margin-top: 5px;">✓ 已獲得</div>' : ''}
+                        </div>
+                    `;
+                }
+                
+                html += `</div></div>`;
+            }
+
+            document.getElementById('badges-container').innerHTML = html || '<p>目前沒有徽章資料</p>';
+        }
+
+        // 頁面載入
+        loadAchievements();
+    </script>
+</body>
+</html>
