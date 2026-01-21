@@ -5,6 +5,7 @@
  */
 
 const https = require('https');
+const axios = require('axios');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -195,6 +196,42 @@ async function recognizeProduct(base64Image, mimeType) {
 }
 
 /**
+ * 從 LINE 訊息 ID 取得圖片並辨識
+ * @param {string} messageId - LINE 訊息 ID
+ * @returns {Promise<Object>} 辨識結果
+ */
+async function recognizeFromLineImage(messageId) {
+    const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    
+    if (!LINE_CHANNEL_ACCESS_TOKEN) {
+        throw new Error('LINE_CHANNEL_ACCESS_TOKEN 未設定');
+    }
+
+    try {
+        // 從 LINE 取得圖片
+        const url = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
+        const response = await axios.get(url, {
+            headers: {
+                'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
+            },
+            responseType: 'arraybuffer'
+        });
+
+        // 轉換為 base64
+        const base64Image = Buffer.from(response.data).toString('base64');
+        
+        // 判斷圖片類型（LINE 通常是 JPEG）
+        const mimeType = response.headers['content-type'] || 'image/jpeg';
+
+        // 進行辨識
+        return await recognizeProduct(base64Image, mimeType);
+    } catch (error) {
+        console.error('LINE 圖片辨識失敗:', error);
+        throw error;
+    }
+}
+
+/**
  * 取得信心度等級
  */
 function getConfidenceLevel(confidence) {
@@ -209,5 +246,6 @@ function getConfidenceLevel(confidence) {
 
 module.exports = {
     recognizeProduct,
+    recognizeFromLineImage,
     getConfidenceLevel
 };
