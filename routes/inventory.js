@@ -149,7 +149,7 @@ module.exports = function(db) {
         }
     });
 
-    // 更新庫存數量
+    // 更新數量
     router.put('/:id/quantity', (req, res) => {
         try {
             const { quantity } = req.body;
@@ -169,6 +169,99 @@ module.exports = function(db) {
         } catch (error) {
             console.error('更新數量失敗:', error);
             res.status(500).json({ error: '更新數量失敗' });
+        }
+    });
+
+    // ===== 編輯庫存記錄（完整編輯） =====
+    router.put('/:id', (req, res) => {
+        try {
+            const { quantity, expiry_date, name, category, storage_temp } = req.body;
+            const inventoryId = req.params.id;
+            
+            // 取得現有庫存記錄
+            const existing = db.prepare(`
+                SELECT i.*, p.id as product_id, p.name, p.category, p.storage_temp
+                FROM inventory i
+                JOIN products p ON i.product_id = p.id
+                WHERE i.id = ?
+            `).get(inventoryId);
+            
+            if (!existing) {
+                return res.status(404).json({ error: '找不到這筆庫存記錄' });
+            }
+
+            // 更新庫存記錄
+            if (quantity !== undefined || expiry_date) {
+                const invStmt = db.prepare(`
+                    UPDATE inventory 
+                    SET quantity = COALESCE(?, quantity),
+                        expiry_date = COALESCE(?, expiry_date),
+                        updated_at = datetime('now')
+                    WHERE id = ?
+                `);
+                invStmt.run(
+                    quantity !== undefined ? quantity : null,
+                    expiry_date || null,
+                    inventoryId
+                );
+            }
+
+            // 更新商品資訊
+            if (name || category !== undefined || storage_temp) {
+                const prodStmt = db.prepare(`
+                    UPDATE products 
+                    SET name = COALESCE(?, name),
+                        category = COALESCE(?, category),
+                        storage_temp = COALESCE(?, storage_temp),
+                        updated_at = datetime('now')
+                    WHERE id = ?
+                `);
+                prodStmt.run(
+                    name || null,
+                    category !== undefined ? category : null,
+                    storage_temp || null,
+                    existing.product_id
+                );
+            }
+
+            res.json({ 
+                success: true, 
+                message: '✅ 庫存資料已更新！' 
+            });
+        } catch (error) {
+            console.error('編輯庫存失敗:', error);
+            res.status(500).json({ error: '編輯失敗：' + error.message });
+        }
+    });
+
+    // 取得單一庫存記錄（給編輯用）
+    router.get('/:id', (req, res) => {
+        try {
+            const item = db.prepare(`
+                SELECT 
+                    i.id,
+                    i.quantity,
+                    i.expiry_date,
+                    i.status,
+                    i.created_at,
+                    p.id as product_id,
+                    p.barcode,
+                    p.name,
+                    p.category,
+                    p.storage_temp
+                FROM inventory i
+                JOIN products p ON i.product_id = p.id
+                WHERE i.id = ?
+            `).get(req.params.id);
+            
+            if (!item) {
+                return res.status(404).json({ error: '找不到這筆庫存記錄' });
+            }
+            
+            res.json(item);
+        } catch (error) {
+            console.error('取得庫存記錄失敗:', error);
+            res.status(500).json({ error: '取得記錄失敗' });
         }
     });
 
