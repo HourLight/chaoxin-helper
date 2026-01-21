@@ -1,13 +1,16 @@
 /**
  * LINE Bot 服務
  * 處理 LINE 訊息和互動
- * 潮欣小幫手 v1.0.0
+ * 潮欣小幫手 v2.0.0
  */
 
 const line = require('@line/bot-sdk');
-const aiRecognition = require('./ai-recognition');  // ← 加這行
+const aiRecognition = require('./ai-recognition');
 
 module.exports = function(db) {
+    // 引入遊戲化和抽籤服務
+    const gamificationService = require('./gamification')(db);
+    const fortuneService = require('./fortune')(db);
     /**
      * 取得 LINE 設定
      */
@@ -254,6 +257,219 @@ async function handleEvent(event) {
             });
             return;
         }
+
+        // ===== 🎮 簽到功能 =====
+        const checkinKeywords = ['簽到', '打卡', 'checkin', '報到'];
+        if (checkinKeywords.some(keyword => text.includes(keyword))) {
+            const userId = event.source.userId;
+            if (!userId) {
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ type: 'text', text: '😅 無法識別你的身份，請私訊我或加我為好友喔～' }]
+                });
+                return;
+            }
+
+            // 嘗試取得用戶名稱
+            let displayName = '店員';
+            try {
+                const profile = await client.getProfile(userId);
+                displayName = profile.displayName;
+            } catch (e) {
+                // 可能在群組中無法取得，使用預設名稱
+            }
+
+            // 執行簽到
+            const result = gamificationService.dailyCheckin(userId, displayName);
+
+            if (result.alreadyCheckedIn) {
+                // 已經簽到過了
+                const gameData = gamificationService.getUserGameData(userId);
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{
+                        type: 'flex',
+                        altText: '今天已經簽到過囉！',
+                        contents: {
+                            type: 'bubble',
+                            size: 'kilo',
+                            header: {
+                                type: 'box', layout: 'vertical', paddingAll: '15px', backgroundColor: '#888888',
+                                contents: [{ type: 'text', text: '📝 今天已簽到', weight: 'bold', size: 'lg', color: '#FFFFFF', align: 'center' }]
+                            },
+                            body: {
+                                type: 'box', layout: 'vertical', paddingAll: '20px', spacing: 'md',
+                                contents: [
+                                    { type: 'text', text: `嗨 ${displayName}！`, weight: 'bold', size: 'lg', align: 'center' },
+                                    { type: 'text', text: '今天已經簽到過囉～', size: 'md', color: '#666666', align: 'center', margin: 'md' },
+                                    { type: 'separator', margin: 'lg' },
+                                    { type: 'box', layout: 'horizontal', margin: 'lg', contents: [
+                                        { type: 'text', text: '🔥 連續', size: 'sm', flex: 2 },
+                                        { type: 'text', text: `${gameData.streakDays} 天`, size: 'sm', weight: 'bold', color: '#FF6B35', flex: 2, align: 'end' }
+                                    ]},
+                                    { type: 'box', layout: 'horizontal', margin: 'sm', contents: [
+                                        { type: 'text', text: '⭐ 總經驗', size: 'sm', flex: 2 },
+                                        { type: 'text', text: `${gameData.totalXP} XP`, size: 'sm', weight: 'bold', flex: 2, align: 'end' }
+                                    ]},
+                                    { type: 'text', text: '明天記得再來喔！💪', size: 'sm', color: '#888888', align: 'center', margin: 'lg' }
+                                ]
+                            }
+                        }
+                    }]
+                });
+            } else {
+                // 簽到成功
+                const gameData = gamificationService.getUserGameData(userId);
+                const messages = [];
+
+                // 主要簽到成功卡片
+                let extraMessage = '';
+                if (result.streakBonus) {
+                    extraMessage = `\n\n🎊 連續 ${result.streakBonus.days} 天獎勵：+${result.streakBonus.xp} XP！`;
+                }
+                if (result.isNightShift) {
+                    extraMessage += `\n🌙 夜貓子連續：${result.nightStreak} 天`;
+                }
+                if (result.hiddenBadgeEarned) {
+                    extraMessage += `\n\n🏅 解鎖隱藏徽章：${result.hiddenBadgeEarned.name}！`;
+                }
+                if (result.leveledUp) {
+                    extraMessage += `\n\n🎉 恭喜升級到 Lv.${result.newLevel} ${result.levelName}！`;
+                }
+
+                messages.push({
+                    type: 'flex',
+                    altText: `✅ 簽到成功！連續 ${result.streak} 天`,
+                    contents: {
+                        type: 'bubble',
+                        size: 'mega',
+                        header: {
+                            type: 'box', layout: 'vertical', paddingAll: '18px', backgroundColor: '#1DB446',
+                            contents: [
+                                { type: 'text', text: '✅ 簽到成功！', weight: 'bold', size: 'xl', color: '#FFFFFF', align: 'center' },
+                                { type: 'text', text: `${displayName}`, size: 'md', color: '#FFFFFF', align: 'center', margin: 'sm' }
+                            ]
+                        },
+                        body: {
+                            type: 'box', layout: 'vertical', paddingAll: '20px', spacing: 'md',
+                            contents: [
+                                { type: 'box', layout: 'horizontal', contents: [
+                                    { type: 'text', text: '🔥 連續簽到', size: 'md', flex: 3 },
+                                    { type: 'text', text: `${result.streak} 天`, size: 'lg', weight: 'bold', color: '#FF6B35', flex: 2, align: 'end' }
+                                ]},
+                                { type: 'box', layout: 'horizontal', margin: 'md', contents: [
+                                    { type: 'text', text: '⭐ 獲得經驗', size: 'md', flex: 3 },
+                                    { type: 'text', text: `+${result.xpGained} XP`, size: 'lg', weight: 'bold', color: '#9B59B6', flex: 2, align: 'end' }
+                                ]},
+                                { type: 'separator', margin: 'lg' },
+                                { type: 'box', layout: 'horizontal', margin: 'lg', contents: [
+                                    { type: 'text', text: '等級', size: 'sm', color: '#888888', flex: 2 },
+                                    { type: 'text', text: `Lv.${gameData.level} ${gameData.levelName}`, size: 'sm', weight: 'bold', flex: 3, align: 'end' }
+                                ]},
+                                { type: 'box', layout: 'horizontal', margin: 'sm', contents: [
+                                    { type: 'text', text: '累計經驗', size: 'sm', color: '#888888', flex: 2 },
+                                    { type: 'text', text: `${gameData.totalXP} XP`, size: 'sm', flex: 3, align: 'end' }
+                                ]},
+                                extraMessage ? { type: 'text', text: extraMessage, size: 'sm', color: '#1DB446', wrap: true, margin: 'lg' } : null
+                            ].filter(Boolean)
+                        },
+                        footer: {
+                            type: 'box', layout: 'horizontal', paddingAll: '12px', spacing: 'sm',
+                            contents: [
+                                { type: 'button', action: { type: 'message', label: '🎴 抽籤', text: '抽籤' }, style: 'primary', color: '#FF6B35', height: 'sm', flex: 1 },
+                                { type: 'button', action: { type: 'message', label: '💪 我的成就', text: '我的成就' }, style: 'secondary', height: 'sm', flex: 1 }
+                            ]
+                        }
+                    }
+                });
+
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages
+                });
+            }
+            return;
+        }
+
+        // ===== 🎴 抽籤功能 =====
+        const fortuneKeywords = ['抽籤', '抽', '運勢', '籤', '幸運', '占卜', '今日運勢'];
+        if (fortuneKeywords.some(keyword => text === keyword || (keyword.length > 1 && text.includes(keyword)))) {
+            const userId = event.source.userId;
+            if (!userId) {
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ type: 'text', text: '😅 無法識別你的身份，請私訊我或加我為好友喔～' }]
+                });
+                return;
+            }
+
+            // 抽籤
+            const card = fortuneService.drawFortune(userId, 'manual');
+            
+            if (!card) {
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ type: 'text', text: '😅 籤筒好像空了...請稍後再試～' }]
+                });
+                return;
+            }
+
+            // 給 XP 獎勵
+            gamificationService.addXP(userId, 5, 'draw', '抽籤');
+
+            // 取得統計資訊
+            const stats = fortuneService.getFortuneStats(userId);
+
+            // 建立籤卡 Flex Message
+            const fortuneMessage = fortuneService.createFortuneFlexMessage(card);
+
+            // 加上額外資訊
+            let extraText = '';
+            if (card.isGuaranteed) {
+                extraText = '\n\n🎊 保底觸發！幸運值已重置～';
+            }
+            if (stats.until_guarantee > 0 && stats.until_guarantee <= 3) {
+                extraText += `\n💫 再抽 ${stats.until_guarantee} 次保底 SR 以上！`;
+            }
+
+            const messages = [fortuneMessage];
+            
+            if (extraText) {
+                messages.push({
+                    type: 'text',
+                    text: extraText.trim()
+                });
+            }
+
+            await client.replyMessage({
+                replyToken: event.replyToken,
+                messages
+            });
+            return;
+        }
+
+        // ===== 💪 我的成就 =====
+        const achievementKeywords = ['成就', '我的成就', '戰績', '我的狀態', '狀態'];
+        if (achievementKeywords.some(keyword => text.includes(keyword))) {
+            const userId = event.source.userId;
+            if (!userId) {
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ type: 'text', text: '😅 無法識別你的身份，請私訊我喔～' }]
+                });
+                return;
+            }
+
+            const gameData = gamificationService.getUserGameData(userId);
+            const statsMessage = gamificationService.createUserStatsFlexMessage(gameData);
+
+            await client.replyMessage({
+                replyToken: event.replyToken,
+                messages: [statsMessage]
+            });
+            return;
+        }
+
 // ===== 拍照辨識指令 =====
         if (text.includes('拍照') || text.includes('辨識') || text.includes('掃描') || text.includes('ai')) {
             await client.replyMessage({
@@ -514,6 +730,10 @@ async function handleEvent(event) {
                 messages: [{
                     type: 'text',
                     text: `📚 潮欣小幫手使用教學\n\n` +
+                          `【🎮 遊戲化功能】\n` +
+                          `• 簽到/打卡 → 每日簽到獲得 XP\n` +
+                          `• 抽/抽籤 → 抽幸運籤\n` +
+                          `• 成就 → 查看你的戰績\n\n` +
                           `【登記商品】\n` +
                           `1. 打開網頁 → 快速商品登記\n` +
                           `2. 輸入條碼（或掃描）\n` +
@@ -686,8 +906,8 @@ async function handleEvent(event) {
                 header: {
                     type: 'box', layout: 'vertical', paddingAll: '20px', backgroundColor: '#F7941D',
                     contents: [
-                        { type: 'text', text: '🏪 潮欣小幫手', weight: 'bold', size: 'xl', color: '#FFFFFF' },
-                        { type: 'text', text: '便利商店效期管理系統', size: 'sm', color: '#FFFFFF', margin: 'sm' }
+                        { type: 'text', text: '🏪 潮欣小幫手 2.0', weight: 'bold', size: 'xl', color: '#FFFFFF' },
+                        { type: 'text', text: '便利商店效期管理 × 遊戲化', size: 'sm', color: '#FFFFFF', margin: 'sm' }
                     ]
                 },
                 body: {
@@ -696,8 +916,12 @@ async function handleEvent(event) {
                         { type: 'text', text: '嗨～我是潮欣小幫手！', size: 'md', wrap: true },
                         { type: 'text', text: '有什麼需要幫忙的嗎？', size: 'sm', color: '#666666', margin: 'sm' },
                         { type: 'separator', margin: 'lg' },
-                        { type: 'text', text: '📌 快速功能', size: 'sm', color: '#999999', margin: 'lg' },
-                        { type: 'text', text: '💡 也可以輸入關鍵字喔！', size: 'xs', color: '#AAAAAA', margin: 'sm' }
+                        { type: 'text', text: '🎮 快速功能', size: 'sm', color: '#999999', margin: 'lg' },
+                        { type: 'box', layout: 'horizontal', margin: 'md', spacing: 'sm', contents: [
+                            { type: 'button', action: { type: 'message', label: '📝 簽到', text: '簽到' }, style: 'primary', color: '#1DB446', height: 'sm', flex: 1 },
+                            { type: 'button', action: { type: 'message', label: '🎴 抽籤', text: '抽籤' }, style: 'primary', color: '#FF6B35', height: 'sm', flex: 1 },
+                            { type: 'button', action: { type: 'message', label: '💪 成就', text: '我的成就' }, style: 'secondary', height: 'sm', flex: 1 }
+                        ]}
                     ]
                 },
                 footer: {
@@ -706,9 +930,8 @@ async function handleEvent(event) {
                         { type: 'button', action: { type: 'uri', label: '🏠 前往首頁', uri: baseUrl }, style: 'primary', color: '#F7941D', height: 'sm' },
                         { type: 'button', action: { type: 'uri', label: '📱 快速商品登記', uri: `${baseUrl}/quick-register` }, style: 'secondary', height: 'sm' },
                         { type: 'button', action: { type: 'uri', label: '📋 庫存管理', uri: `${baseUrl}/inventory` }, style: 'secondary', height: 'sm' },
-                        { type: 'button', action: { type: 'uri', label: '📦 商品資料庫', uri: `${baseUrl}/products` }, style: 'secondary', height: 'sm' },
-                        { type: 'box', layout: 'vertical', margin: 'lg', contents: [
-                            { type: 'text', text: '📝 關鍵字：效期、今天、庫存、報表', size: 'xs', color: '#999999', align: 'center', wrap: true }
+                        { type: 'box', layout: 'vertical', margin: 'md', contents: [
+                            { type: 'text', text: '💡 關鍵字：簽到、抽籤、效期、今天、庫存', size: 'xs', color: '#999999', align: 'center', wrap: true }
                         ]}
                     ]
                 }
