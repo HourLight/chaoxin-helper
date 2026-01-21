@@ -5,6 +5,7 @@
  */
 
 const line = require('@line/bot-sdk');
+const aiRecognition = require('./ai-recognition');  // ← 加這行
 
 module.exports = function(db) {
     /**
@@ -40,22 +41,27 @@ module.exports = function(db) {
     /**
      * 處理 LINE 事件
      */
-    async function handleEvent(event) {
-        const client = getClient();
-        if (!client) return null;
+async function handleEvent(event) {
+    const client = getClient();
+    if (!client) return null;
 
-        // 處理 Postback 事件（互動按鈕點擊）
-        if (event.type === 'postback') {
-            return handlePostback(event, client);
-        }
-
-        // 處理文字訊息
-        if (event.type === 'message' && event.message.type === 'text') {
-            return handleTextMessage(event, client);
-        }
-
-        return null;
+    // 處理 Postback 事件（互動按鈕點擊）
+    if (event.type === 'postback') {
+        return handlePostback(event, client);
     }
+
+    // 處理圖片訊息（AI 辨識）
+    if (event.type === 'message' && event.message.type === 'image') {
+        return handleImageMessage(event, client);
+    }
+
+    // 處理文字訊息
+    if (event.type === 'message' && event.message.type === 'text') {
+        return handleTextMessage(event, client);
+    }
+
+    return null;
+}
 
     /**
      * 處理 Postback 事件
@@ -83,7 +89,7 @@ module.exports = function(db) {
 
             const productName = item ? item.name : '商品';
 
-            // 回覆確認訊息
+// 回覆確認訊息
             await client.replyMessage({
                 replyToken: event.replyToken,
                 messages: [{
@@ -96,6 +102,117 @@ module.exports = function(db) {
         return null;
     }
 
+    /**
+     * 處理圖片訊息 - AI 辨識
+     */
+    async function handleImageMessage(event, client) {
+        const messageId = event.message.id;
+        const baseUrl = process.env.BASE_URL || 'https://chaoxin-helper.onrender.com';
+
+        try {
+            // 先回覆處理中
+            await client.replyMessage({
+                replyToken: event.replyToken,
+                messages: [{
+                    type: 'text',
+                    text: '📸 收到照片！正在辨識中...\n請稍等一下喔～ ⏳'
+                }]
+            });
+
+            // 進行 AI 辨識
+            const result = await aiRecognition.recognizeFromLineImage(messageId);
+
+            // 組織回覆訊息
+            let message = '✨ 辨識結果：\n\n';
+            const params = new URLSearchParams();
+
+            // 條碼
+            if (result.barcode && result.barcode.value) {
+                const conf = aiRecognition.getConfidenceLevel(result.barcode.confidence);
+                message += `📦 條碼：${result.barcode.value} ${conf.icon}\n`;
+                params.append('barcode', result.barcode.value);
+            }
+
+            // 商品名稱
+            if (result.name && result.name.value) {
+                const conf = aiRecognition.getConfidenceLevel(result.name.confidence);
+                message += `🏷️ 商品：${result.name.value} ${conf.icon}\n`;
+                params.append('name', result.name.value);
+            }
+
+            // 效期
+            if (result.expiry_date && result.expiry_date.value) {
+                const conf = aiRecognition.getConfidenceLevel(result.expiry_date.confidence);
+                const displayDate = new Date(result.expiry_date.value).toLocaleDateString('zh-TW');
+                message += `📅 效期：${displayDate} ${conf.icon}\n`;
+                if (result.expiry_date.original_text) {
+                    message += `   （原始：${result.expiry_date.original_text}）\n`;
+                }
+                params.append('expiry', result.expiry_date.value);
+            }
+
+            // 溫層
+            if (result.storage_temp) {
+                const tempMap = {
+                    'refrigerated': '❄️ 冷藏',
+                    'frozen': '🧊 冷凍',
+                    'room_temp': '🌡️ 常溫'
+                };
+                message += `🌡️ 溫層：${tempMap[result.storage_temp] || '冷藏'}\n`;
+                params.append('temp', result.storage_temp);
+            }
+
+            // 分類
+            if (result.category) {
+                message += `📁 分類：${result.category}\n`;
+                params.append('category', result.category);
+            }
+
+            // 備註
+            if (result.notes) {
+                message += `\n💡 備註：${result.notes}\n`;
+            }
+
+            // 模擬模式提示
+            if (result.mock) {
+                message += '\n⚠️ 目前為模擬模式，請到網頁手動登記';
+            }
+
+            // 有辨識到資料，提供快速登記連結
+            if (params.toString()) {
+                message += '\n━━━━━━━━━━\n';
+                message += '\n👆 確認資訊正確後\n';
+                message += '👉 點這裡完成登記：\n';
+                message += `${baseUrl}/pages/smart-register.html?${params.toString()}`;
+            } else {
+                message += '\n😅 沒有辨識到完整資訊\n';
+                message += '請到網頁手動登記：\n';
+                message += `${baseUrl}/pages/smart-register.html`;
+            }
+
+            // 發送辨識結果（用 pushMessage 因為已經用掉 replyToken）
+            const targetId = event.source.groupId || event.source.userId;
+            await client.pushMessage({
+                to: targetId,
+                messages: [{ type: 'text', text: message }]
+            });
+
+        } catch (error) {
+            console.error('圖片辨識失敗:', error);
+            
+            const targetId = event.source.groupId || event.source.userId;
+            await client.pushMessage({
+                to: targetId,
+                messages: [{
+                    type: 'text',
+                    text: `😅 辨識失敗了...\n\n錯誤：${error.message}\n\n請到網頁手動登記：\n${baseUrl}/pages/smart-register.html`
+                }]
+            });
+        }
+
+        return null;
+    }
+       
     /**
      * 處理文字訊息
      */
@@ -137,7 +254,17 @@ module.exports = function(db) {
             });
             return;
         }
-
+// ===== 拍照辨識指令 =====
+        if (text.includes('拍照') || text.includes('辨識') || text.includes('掃描') || text.includes('ai')) {
+            await client.replyMessage({
+                replyToken: event.replyToken,
+                messages: [{
+                    type: 'text',
+                    text: `📸 好的！請直接拍一張商品照片給我～\n\n💡 拍照小秘訣：\n► 把條碼、商品名、效期都拍進去\n► 光線要充足喔\n► 拍清楚一點，辨識更準確！\n\n拍好直接傳給我就可以囉～ 🙌`
+                }]
+            });
+            return;
+        }
         // ===== 時段問候 =====
         if (text.includes('早安')) {
             await client.replyMessage({
