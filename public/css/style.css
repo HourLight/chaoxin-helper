@@ -1098,3 +1098,253 @@ a:hover {
 .text-danger { color: var(--seven-red); }
 .text-warning { color: var(--seven-orange); }
 .text-muted { color: var(--text-hint); }
+/* ========================================
+   吉祥物圖片樣式
+   ======================================== */
+.mascot-container {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.mascot-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    box-shadow: 0 4px 16px rgba(46, 204, 113, 0.3);
+    border: 4px solid #2ecc71;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.mascot-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+}
+
+/* ========================================
+   優化歡迎區塊
+   ======================================== */
+.welcome-section {
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+    border-radius: 16px;
+    padding: 24px 20px;
+    margin-bottom: 20px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(46, 204, 113, 0.2);
+}
+
+.welcome-text {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.welcome-subtitle {
+    font-size: 1rem;
+    color: #2ecc71;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+/* ========================================
+   統計數字優化
+   ======================================== */
+.welcome-stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed rgba(46, 204, 113, 0.3);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #F7941D;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   區塊標題優化
+   ======================================== */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 24px 0 12px 0;
+    padding-left: 4px;
+}
+
+.section-header .section-icon {
+    font-size: 1.2rem;
+}
+
+.section-header .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.section-header.admin .section-title {
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   功能卡片優化
+   ======================================== */
+.feature-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--gray-200);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    border-color: #2ecc71;
+}
+
+.feature-card:active {
+    transform: translateY(0);
+}
+
+.feature-card .icon {
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+}
+
+.feature-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.feature-card p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* 管理員卡片樣式 */
+.feature-card.admin-card {
+    background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+    border: 1px dashed var(--gray-300);
+}
+
+.feature-card.admin-card:hover {
+    border-color: #F7941D;
+    border-style: solid;
+}
+
+/* ========================================
+   效期提醒卡片優化
+   ======================================== */
+.alert-card {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+    border: 2px solid #e74c3c;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    animation: pulse-alert 2s infinite;
+}
+
+.alert-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(231, 76, 60, 0.2);
+}
+
+@keyframes pulse-alert {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); }
+}
+
+.alert-icon {
+    font-size: 2rem;
+}
+
+.alert-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #c0392b;
+    margin-bottom: 2px;
+}
+
+.alert-content p {
+    font-size: 0.85rem;
+    color: #e74c3c;
+}
+
+.alert-card.hidden {
+    display: none;
+}
+```
+
+---
+
+## ✅ 完成後的效果
+```
+┌─────────────────────────────┐
+│    🏪 潮欣小幫手            │
+│   便利商店生鮮品效期管理     │
+├─────────────────────────────┤
+│                             │
+│      [可愛吉祥物圖片]        │
+│                             │
+│      👋 歡迎回來！           │
+│  💚 有我在，效期管理變簡單！  │
+│                             │
+│     12          3           │
+│   庫存商品    今日登記       │
+│                             │
+├─────────────────────────────┤
+│  ⚠️ 有 2 個商品需要處理！    │  ← 有問題才會顯示
+├─────────────────────────────┤
+│  ⭐ 主要功能                 │
+│  ┌─────┐  ┌─────┐          │
+│  │ 📸  │  │ 📱  │          │
+│  │智慧  │  │快速  │          │
+│  │登記  │  │登記  │          │
+│  └─────┘  └─────┘          │
+│  ┌─────┐  ┌─────┐          │
+│  │ 📋  │  │ 📦  │          │
+│  │庫存  │  │商品  │          │
+│  │管理  │  │資料庫│          │
+│  └─────┘  └─────┘          │
+├─────────────────────────────┤
+│  🔐 管理員功能               │
+│  ┌─────┐  ┌─────┐          │
+│  │ ⚙️  │  │ 🤖  │          │
+│  │系統  │  │LINE │          │
+│  │設定  │  │Bot  │          │
+│  └─────┘  └─────┘          │
+└─────────────────────────────┘
