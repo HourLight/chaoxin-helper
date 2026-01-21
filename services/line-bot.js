@@ -183,11 +183,11 @@ async function handleEvent(event) {
                 message += '\n━━━━━━━━━━\n';
                 message += '\n👆 確認資訊正確後\n';
                 message += '👉 點這裡完成登記：\n';
-                message += `${baseUrl}/pages/smart-register.html?${params.toString()}`;
+                message += `${baseUrl}/smart-register?${params.toString()}`;
             } else {
                 message += '\n😅 沒有辨識到完整資訊\n';
                 message += '請到網頁手動登記：\n';
-                message += `${baseUrl}/pages/smart-register.html`;
+                message += `${baseUrl}/smart-register`;
             }
 
             // 發送辨識結果（用 pushMessage 因為已經用掉 replyToken）
