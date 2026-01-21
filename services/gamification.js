@@ -100,7 +100,9 @@ module.exports = function(db) {
      */
     function dailyCheckin(userId, displayName = '店員') {
         const stats = getOrCreateUserStats(userId, displayName);
-        const today = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const currentHour = now.getHours();
         
         // 檢查是否已簽到
         if (stats.last_checkin === today) {
@@ -123,12 +125,44 @@ module.exports = function(db) {
             }
         }
 
-        // 更新簽到資訊
+        // === 隱藏徽章：時段判斷 ===
+        const isNightShift = currentHour >= 0 && currentHour < 6;   // 凌晨 0:00-5:59
+        const isEarlyShift = currentHour >= 6 && currentHour < 9;   // 早班 6:00-8:59
+        
+        // 計算時段連續天數（需要連續，中斷就歸零）
+        let newNightStreak = 0;
+        let newEarlyStreak = 0;
+        
+        if (stats.last_checkin) {
+            const lastDate = new Date(stats.last_checkin);
+            const todayDate = new Date(today);
+            const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) {
+                // 連續簽到，繼續累積對應時段
+                if (isNightShift) {
+                    newNightStreak = (stats.night_streak || 0) + 1;
+                }
+                if (isEarlyShift) {
+                    newEarlyStreak = (stats.early_streak || 0) + 1;
+                }
+            } else {
+                // 中斷了，重新開始
+                if (isNightShift) newNightStreak = 1;
+                if (isEarlyShift) newEarlyStreak = 1;
+            }
+        } else {
+            // 第一次簽到
+            if (isNightShift) newNightStreak = 1;
+            if (isEarlyShift) newEarlyStreak = 1;
+        }
+
+        // 更新簽到資訊（包含時段連續天數）
         db.prepare(`
             UPDATE user_stats 
-            SET last_checkin = ?, streak_days = ?, updated_at = datetime('now')
+            SET last_checkin = ?, streak_days = ?, night_streak = ?, early_streak = ?, updated_at = datetime('now')
             WHERE user_id = ?
-        `).run(today, newStreak, userId);
+        `).run(today, newStreak, newNightStreak, newEarlyStreak, userId);
 
         // 基礎簽到 XP
         let xpResult = addXP(userId, XP_REWARDS.checkin, 'checkin', `每日簽到 Day ${newStreak}`);
@@ -149,11 +183,35 @@ module.exports = function(db) {
             checkStreakBadge(userId, 30);
         }
 
+        // === 檢查隱藏徽章 ===
+        let hiddenBadgeEarned = null;
+        
+        // 夜貓新手（凌晨連續 7 天）
+        if (newNightStreak === 7) {
+            const badge = awardBadge(userId, 'night_owl_7');
+            if (badge) hiddenBadgeEarned = badge;
+        }
+        // 夜行者（凌晨連續 30 天）
+        if (newNightStreak === 30) {
+            const badge = awardBadge(userId, 'night_owl_30');
+            if (badge) hiddenBadgeEarned = badge;
+        }
+        // 早起鳥（早班連續 7 天）
+        if (newEarlyStreak === 7) {
+            const badge = awardBadge(userId, 'early_bird');
+            if (badge) hiddenBadgeEarned = badge;
+        }
+
         return {
             success: true,
             streak: newStreak,
             xpGained: XP_REWARDS.checkin,
             streakBonus,
+            nightStreak: newNightStreak,
+            earlyStreak: newEarlyStreak,
+            isNightShift,
+            isEarlyShift,
+            hiddenBadgeEarned,
             ...xpResult
         };
     }
