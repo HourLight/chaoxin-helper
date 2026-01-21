@@ -73,12 +73,16 @@ const apiRoutes = require('./routes/api')(db);
 const productRoutes = require('./routes/products')(db);
 const inventoryRoutes = require('./routes/inventory')(db);
 const lineRoutes = require('./routes/line')(db);
+const fortuneRoutes = require('./routes/fortune')(db);
+const gamificationRoutes = require('./routes/gamification')(db);
 
 // 使用路由
 app.use('/api', apiRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/line', lineRoutes);
+app.use('/api/fortune', fortuneRoutes);
+app.use('/api/game', gamificationRoutes);
 
 // AI 辨識路由
 const aiRecognition = require('./services/ai-recognition');
@@ -143,6 +147,23 @@ app.get('/settings', (req, res) => {
 app.get('/line-settings', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'pages', 'line-settings.html'));
 });
+
+// === 2.0 新增頁面 ===
+app.get('/fortune', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pages', 'fortune.html'));
+});
+
+app.get('/achievements', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pages', 'achievements.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html'));
+});
+
+// 初始化籤卡資料
+const fortuneService = require('./services/fortune')(db);
+fortuneService.initFortuneCards();
 
 // 定時任務 - 每天發送效期提醒
 const cronTime = process.env.NOTIFICATION_CRON_TIME || '0 9 * * *';
