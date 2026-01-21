@@ -60,7 +60,8 @@ app.post('/webhook', express.raw({ type: '*/*' }), async (req, res) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/images', express.static(path.join(__dirname, 'images')));
+app.use('/images', express.static(path.join(__dirname, 'images'))); // 吉祥物圖片
+
 // 圖片上傳設定
 const storage = multer.memoryStorage();
 const upload = multer({ 
@@ -165,16 +166,28 @@ app.get('/dashboard', (req, res) => {
 const fortuneService = require('./services/fortune')(db);
 fortuneService.initFortuneCards();
 
-// 定時任務 - 每天發送效期提醒
+// 定時任務 - 每天早上 9 點發送「今天」效期提醒
 const cronTime = process.env.NOTIFICATION_CRON_TIME || '0 9 * * *';
 cron.schedule(cronTime, async () => {
-    console.log('執行定時效期提醒任務...');
+    console.log('執行定時效期提醒任務（今天到期）...');
     try {
         const notificationService = require('./services/notification')(db);
         await notificationService.sendExpiryNotifications();
         console.log('定時提醒發送完成');
     } catch (error) {
         console.error('定時提醒發送失敗:', error);
+    }
+});
+
+// 定時任務 - 每天晚上 9 點發送「明天」效期提醒
+cron.schedule('0 21 * * *', async () => {
+    console.log('執行定時效期提醒任務（明天到期）...');
+    try {
+        const notificationService = require('./services/notification')(db);
+        await notificationService.sendTomorrowExpiryNotifications();
+        console.log('明天到期提醒發送完成');
+    } catch (error) {
+        console.error('明天到期提醒發送失敗:', error);
     }
 });
 
