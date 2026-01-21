@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- 商品表
 CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    barcode TEXT UNIQUE NOT NULL,
+    barcode TEXT UNIQUE,
     name TEXT NOT NULL,
     category TEXT,
     storage_temp TEXT DEFAULT 'refrigerated' CHECK(storage_temp IN ('refrigerated', 'frozen', 'room_temp')),
