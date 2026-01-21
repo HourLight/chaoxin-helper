@@ -73,27 +73,31 @@ module.exports = function(db) {
 
             let productId = product_id;
 
-            // 如果沒有 product_id，嘗試用條碼查找或建立新商品
-            if (!productId && barcode) {
-                const existing = db.prepare('SELECT id FROM products WHERE barcode = ?').get(barcode);
+// 如果沒有 product_id，嘗試用條碼查找或建立新商品
+            if (!productId) {
+                // 有條碼就先用條碼查
+                if (barcode) {
+                    const existing = db.prepare('SELECT id FROM products WHERE barcode = ?').get(barcode);
+                    if (existing) {
+                        productId = existing.id;
+                    }
+                }
                 
-                if (existing) {
-                    productId = existing.id;
-                } else if (name) {
-                    // 建立新商品
+                // 還是沒找到商品，且有名稱，就建立新商品
+                if (!productId && name) {
                     const stmt = db.prepare(`
                         INSERT INTO products (barcode, name, category, storage_temp)
                         VALUES (?, ?, ?, ?)
                     `);
-                    const result = stmt.run(barcode, name, category || null, storage_temp || 'refrigerated');
+                    // barcode 可以是 null（AI 沒辨識到條碼的情況）
+                    const result = stmt.run(barcode || null, name, category || null, storage_temp || 'refrigerated');
                     productId = result.lastInsertRowid;
-                } else {
-                    return res.status(400).json({ error: '找不到商品，請提供商品名稱' });
                 }
-            }
-
-            if (!productId) {
-                return res.status(400).json({ error: '請提供商品資訊' });
+                
+                // 如果還是沒有 productId，表示缺少必要資訊
+                if (!productId) {
+                    return res.status(400).json({ error: '請提供商品名稱' });
+                }
             }
 
             // 新增庫存記錄
