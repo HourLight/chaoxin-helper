@@ -90,10 +90,10 @@
             margin-bottom: 15px;
         }
         
+        /* 🌿 馥能量配色 */
         .rarity-SSR { background: linear-gradient(45deg, #FFD700, #FFA500); }
         .rarity-SR { background: linear-gradient(45deg, #9B59B6, #8E44AD); }
         .rarity-R { background: linear-gradient(45deg, #3498DB, #2980B9); }
-        .rarity-Quest { background: linear-gradient(45deg, #E74C3C, #C0392B); }
         
         .card-title {
             font-size: 28px;
@@ -147,7 +147,7 @@
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             text-align: center;
         }
@@ -164,15 +164,6 @@
         .stat-label {
             font-size: 12px;
             color: #888;
-        }
-        
-        .guarantee-info {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            text-align: center;
         }
         
         .history-section {
@@ -224,8 +215,8 @@
     <main class="main-content">
         <div class="fortune-container">
             <p style="text-align: center; color: #666; margin-bottom: 20px;">
-                點擊下方按鈕抽取今日運勢～<br>
-                <small>💡 完成效期檢查後機率加倍！</small>
+                🌿 每一張籤都是高我給你的訊息<br>
+                <small>💫 沒有好壞之分，只有此刻你需要的</small>
             </p>
             
             <button class="draw-button" id="drawButton" onclick="drawFortune()">
@@ -267,14 +258,6 @@
                         <div class="stat-value" style="color: #3498DB;" id="rCount">0</div>
                         <div class="stat-label">R</div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-value" style="color: #E74C3C;" id="questCount">0</div>
-                        <div class="stat-label">Quest</div>
-                    </div>
-                </div>
-                
-                <div class="guarantee-info" id="guaranteeInfo">
-                    🌟 距離保底還有 <strong id="untilGuarantee">10</strong> 次
                 </div>
             </div>
             
@@ -337,11 +320,11 @@
             const cardMessage = document.getElementById('cardMessage');
             const cardCode = document.getElementById('cardCode');
             
+            // 🌿 馥能量等級
             const rarityText = {
                 'SSR': '🌟 SSR - 大吉 🌟',
                 'SR': '✨ SR - 中吉 ✨',
-                'R': '💫 R - 小吉 💫',
-                'Quest': '⚔️ Quest - 挑戰 ⚔️'
+                'R': '💫 R - 小吉 💫'
             };
             
             rarityBadge.textContent = rarityText[card.rarity] || card.rarity;
@@ -367,8 +350,6 @@
                 document.getElementById('ssrCount').textContent = stats.ssr_count || 0;
                 document.getElementById('srCount').textContent = stats.sr_count || 0;
                 document.getElementById('rCount').textContent = stats.r_count || 0;
-                document.getElementById('questCount').textContent = stats.quest_count || 0;
-                document.getElementById('untilGuarantee').textContent = stats.until_guarantee || 10;
                 
             } catch (error) {
                 console.error('載入統計失敗:', error);
@@ -388,18 +369,17 @@
                     return;
                 }
                 
+                // 🌿 馥能量配色
                 const rarityColors = {
                     'SSR': '#FFD700',
                     'SR': '#9B59B6',
-                    'R': '#3498DB',
-                    'Quest': '#E74C3C'
+                    'R': '#3498DB'
                 };
                 
                 const rarityEmoji = {
                     'SSR': '🌟',
                     'SR': '✨',
-                    'R': '💫',
-                    'Quest': '⚔️'
+                    'R': '💫'
                 };
                 
                 container.innerHTML = history.map(item => `
