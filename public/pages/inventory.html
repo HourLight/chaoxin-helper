@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#F7941D">
+    <title>庫存管理 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- 7-11 風格 Header -->
+    <header class="header">
+        <div class="header-stripes">
+            <div class="stripe-orange"></div>
+            <div class="stripe-green"></div>
+            <div class="stripe-red"></div>
+        </div>
+        <div class="header-content">
+            <span class="header-back" onclick="location.href='/'">←</span>
+            <h1>📋 庫存管理</h1>
+            <p class="subtitle">管理效期、下架處理</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 工具列 -->
+        <div class="toolbar">
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">全部</button>
+                <button class="filter-btn" data-filter="refrigerated">❄️ 冷藏</button>
+                <button class="filter-btn" data-filter="frozen">🧊 冷凍</button>
+                <button class="filter-btn" data-filter="room_temp">🌡️ 常溫</button>
+            </div>
+            <button class="btn btn-primary btn-sm" id="notifyBtn" style="width: auto; padding: 10px 16px;">
+                🔔 提醒下架
+            </button>
+        </div>
+
+        <!-- 庫存列表 -->
+        <div class="inventory-list" id="inventoryList">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">載入中...</div>
+            </div>
+        </div>
+
+        <!-- 版權聲明 -->
+        <div class="copyright">
+            <p class="copyright-brand">潮欣小幫手</p>
+            <p>便利商店生鮮品效期管理系統</p>
+            <p class="copyright-notice">© 2026 王逸君 版權所有<br>未經授權禁止複製、修改或商業使用</p>
+            <p class="copyright-contact">授權洽詢：Hour Light International Co., Ltd.</p>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const inventoryList = document.getElementById('inventoryList');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        let currentFilter = 'all';
+
+        loadInventory(inventoryList);
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                currentFilter = btn.dataset.filter;
+                const filter = currentFilter === 'all' ? {} : { storage_temp: currentFilter };
+                loadInventory(inventoryList, filter);
+            });
+        });
+
+        document.getElementById('notifyBtn').addEventListener('click', sendLineNotification);
+    </script>
+</body>
+</html>

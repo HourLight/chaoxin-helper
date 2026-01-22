@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#F7941D">
+    <title>管理員報表 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .report-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .report-card h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            text-align: center;
+        }
+        .stat-item {
+            padding: 12px 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .stat-item.highlight {
+            background: linear-gradient(135deg, #1DB446 0%, #17a03d 100%);
+            color: white;
+        }
+        .stat-item.warning {
+            background: linear-gradient(135deg, #FF6B35 0%, #e55a2b 100%);
+            color: white;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            display: block;
+        }
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+        .staff-list {
+            margin-top: 12px;
+        }
+        .staff-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .staff-item:last-child {
+            border-bottom: none;
+        }
+        .staff-name {
+            font-weight: bold;
+            font-size: 15px;
+        }
+        .staff-stats {
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+            color: #666;
+        }
+        .staff-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .sell-rate {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .sell-rate.good { background: #d4edda; color: #155724; }
+        .sell-rate.warning { background: #fff3cd; color: #856404; }
+        .sell-rate.bad { background: #f8d7da; color: #721c24; }
+        .product-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .product-item.attention {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .product-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .product-stats {
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+        }
+        .log-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .log-time {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .log-action {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+        .log-action.sold { background: #d4edda; color: #155724; }
+        .log-action.disposed { background: #f8d7da; color: #721c24; }
+        .log-action.register { background: #cce5ff; color: #004085; }
+        .period-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .period-tab {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .period-tab.active {
+            background: #F7941D;
+            color: white;
+            border-color: #F7941D;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 7-11 風格 Header -->
+    <header class="header">
+        <div class="header-stripes">
+            <div class="stripe-orange"></div>
+            <div class="stripe-green"></div>
+            <div class="stripe-red"></div>
+        </div>
+        <div class="header-content">
+            <span class="header-back" onclick="location.href='/'">←</span>
+            <h1>📊 管理員報表</h1>
+            <p class="subtitle">店員操作追蹤 × 進貨分析</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 總覽卡片 -->
+        <div class="report-card">
+            <h3>📈 今日總覽</h3>
+            <div class="stat-grid" id="todayStats">
+                <div class="stat-item">
+                    <span class="stat-number">-</span>
+                    <span class="stat-label">已售出</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">-</span>
+                    <span class="stat-label">已下架</span>
+                </div>
+                <div class="stat-item highlight">
+                    <span class="stat-number">-</span>
+                    <span class="stat-label">售出率</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 本週統計 -->
+        <div class="report-card">
+            <h3>📅 本週統計</h3>
+            <div class="stat-grid" id="weekStats">
+                <div class="stat-item">
+                    <span class="stat-number">-</span>
+                    <span class="stat-label">已售出</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">-</span>
+                    <span class="stat-label">已下架</span>
+                </div>
+                <div class="stat-item highlight">
+                    <span class="stat-number">-</span>
+                    <span class="stat-label">售出率</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 店員統計 -->
+        <div class="report-card">
+            <h3>👥 店員操作統計</h3>
+            <div class="period-tabs">
+                <button class="period-tab active" data-period="today">今天</button>
+                <button class="period-tab" data-period="week">本週</button>
+                <button class="period-tab" data-period="month">本月</button>
+            </div>
+            <div class="staff-list" id="staffList">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">載入中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 商品報廢分析 -->
+        <div class="report-card">
+            <h3>📦 商品報廢分析</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 12px;">
+                ⚠️ 黃色標記 = 報廢率 > 50%，建議減少進貨
+            </p>
+            <div id="productList">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">載入中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近操作記錄 -->
+        <div class="report-card">
+            <h3>📋 最近操作記錄</h3>
+            <div id="logList">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">載入中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 版權聲明 -->
+        <div class="copyright">
+            <p class="copyright-brand">潮欣小幫手</p>
+            <p>便利商店生鮮品效期管理系統</p>
+            <p class="copyright-notice">© 2026 王逸君 版權所有</p>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentPeriod = 'today';
+
+        // 載入所有資料
+        async function loadAll() {
+            await Promise.all([
+                loadOverview(),
+                loadStaffStats(currentPeriod),
+                loadProductStats(),
+                loadLogs()
+            ]);
+        }
+
+        // 載入總覽
+        async function loadOverview() {
+            try {
+                const data = await api('/reports/overview');
+                
+                // 今日統計
+                document.getElementById('todayStats').innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-number">${data.today.sold || 0}</span>
+                        <span class="stat-label">✨ 已售出</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${data.today.disposed || 0}</span>
+                        <span class="stat-label">📦 已下架</span>
+                    </div>
+                    <div class="stat-item ${data.today.sellRate >= 70 ? 'highlight' : 'warning'}">
+                        <span class="stat-number">${data.today.sellRate}%</span>
+                        <span class="stat-label">售出率</span>
+                    </div>
+                `;
+
+                // 本週統計
+                document.getElementById('weekStats').innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-number">${data.week.sold || 0}</span>
+                        <span class="stat-label">✨ 已售出</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${data.week.disposed || 0}</span>
+                        <span class="stat-label">📦 已下架</span>
+                    </div>
+                    <div class="stat-item ${data.week.sellRate >= 70 ? 'highlight' : 'warning'}">
+                        <span class="stat-number">${data.week.sellRate}%</span>
+                        <span class="stat-label">售出率</span>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('載入總覽失敗:', error);
+            }
+        }
+
+        // 載入店員統計
+        async function loadStaffStats(period) {
+            const container = document.getElementById('staffList');
+            try {
+                const data = await api(`/reports/staff?period=${period}`);
+                
+                if (data.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📋</div>
+                            <p>這段期間還沒有操作記錄</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = data.map(staff => {
+                    let rateClass = 'good';
+                    if (staff.sellRate < 50) rateClass = 'bad';
+                    else if (staff.sellRate < 70) rateClass = 'warning';
+
+                    return `
+                        <div class="staff-item">
+                            <div>
+                                <div class="staff-name">${staff.user_name || '未知'}</div>
+                                <div class="staff-stats">
+                                    <span>✨ ${staff.sold_count}</span>
+                                    <span>📦 ${staff.disposed_count}</span>
+                                </div>
+                            </div>
+                            <div class="sell-rate ${rateClass}">
+                                ${staff.sellRate}%
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('載入店員統計失敗:', error);
+                container.innerHTML = '<div class="empty-state"><p>載入失敗</p></div>';
+            }
+        }
+
+        // 載入商品統計
+        async function loadProductStats() {
+            const container = document.getElementById('productList');
+            try {
+                const data = await api('/reports/products?period=month');
+                
+                if (data.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📦</div>
+                            <p>還沒有商品處理記錄</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = data.map(product => `
+                    <div class="product-item ${product.needsAttention ? 'attention' : ''}">
+                        <div class="product-name">
+                            ${product.needsAttention ? '⚠️ ' : ''}${product.product_name}
+                        </div>
+                        <div class="product-stats">
+                            <span style="color: #1DB446;">✨${product.sold}</span>
+                            <span style="color: #dc3545;">📦${product.disposed}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('載入商品統計失敗:', error);
+                container.innerHTML = '<div class="empty-state"><p>載入失敗</p></div>';
+            }
+        }
+
+        // 載入操作記錄
+        async function loadLogs() {
+            const container = document.getElementById('logList');
+            try {
+                const data = await api('/reports/logs?limit=20');
+                
+                if (data.logs.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📋</div>
+                            <p>還沒有操作記錄</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = data.logs.map(log => {
+                    const time = new Date(log.created_at).toLocaleString('zh-TW');
+                    let actionClass = log.action;
+                    let actionText = log.action;
+                    
+                    if (log.action === 'sold') actionText = '已售出';
+                    else if (log.action === 'disposed') actionText = '已下架';
+                    else if (log.action === 'register') actionText = '登記';
+
+                    return `
+                        <div class="log-item">
+                            <div class="log-time">${time}</div>
+                            <span class="log-action ${actionClass}">${actionText}</span>
+                            <strong>${log.user_name || '店員'}</strong>
+                            處理了「${log.product_name || '商品'}」
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('載入操作記錄失敗:', error);
+                container.innerHTML = '<div class="empty-state"><p>載入失敗</p></div>';
+            }
+        }
+
+        // 週期切換
+        document.querySelectorAll('.period-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentPeriod = tab.dataset.period;
+                loadStaffStats(currentPeriod);
+            });
+        });
+
+        // 初始載入
+        loadAll();
+    </script>
+</body>
+</html>
