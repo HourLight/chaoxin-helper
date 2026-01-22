@@ -76,6 +76,7 @@ const inventoryRoutes = require('./routes/inventory')(db);
 const lineRoutes = require('./routes/line')(db);
 const fortuneRoutes = require('./routes/fortune')(db);
 const gamificationRoutes = require('./routes/gamification')(db);
+const reportsRoutes = require('./routes/reports')(db);
 
 // 使用路由
 app.use('/api', apiRoutes);
@@ -84,6 +85,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/line', lineRoutes);
 app.use('/api/fortune', fortuneRoutes);
 app.use('/api/game', gamificationRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // AI 辨識路由
 const aiRecognition = require('./services/ai-recognition');
@@ -160,6 +162,10 @@ app.get('/achievements', (req, res) => {
 
 app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html'));
+});
+
+app.get('/reports', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pages', 'reports.html'));
 });
 
 // 初始化籤卡資料
