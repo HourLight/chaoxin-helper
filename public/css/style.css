@@ -1,0 +1,1432 @@
+/**
+ * 潮欣小幫手 - 7-ELEVEN 風格樣式
+ * 經典橘綠紅三色條紋設計
+ */
+
+/* ===== 7-11 品牌色彩 ===== */
+:root {
+    /* 主要品牌色 */
+    --seven-orange: #F7941D;
+    --seven-orange-dark: #E07D0B;
+    --seven-orange-light: #FFF3E0;
+    --seven-green: #00873E;
+    --seven-green-dark: #006B31;
+    --seven-green-light: #E8F5E9;
+    --seven-red: #E11B22;
+    --seven-red-dark: #C41017;
+    --seven-red-light: #FFEBEE;
+    
+    /* 輔助色 */
+    --white: #FFFFFF;
+    --gray-50: #FAFAFA;
+    --gray-100: #F5F5F5;
+    --gray-200: #EEEEEE;
+    --gray-300: #E0E0E0;
+    --gray-400: #BDBDBD;
+    --gray-500: #9E9E9E;
+    --gray-600: #757575;
+    --gray-700: #616161;
+    --gray-800: #424242;
+    --gray-900: #212121;
+    
+    /* 功能色 */
+    --text-primary: #212121;
+    --text-secondary: #616161;
+    --text-hint: #9E9E9E;
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F5F5F5;
+    --border-color: #E0E0E0;
+    
+    /* 陰影 */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+    
+    /* 圓角 */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    
+    /* 字型 */
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+}
+
+/* ===== Reset & Base ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: var(--font-family);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--seven-orange);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* ===== Layout ===== */
+.container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+    padding-bottom: 100px;
+}
+
+/* ===== 7-11 經典 Header ===== */
+.header {
+    background: var(--white);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+}
+
+/* 三色條紋 */
+.header-stripes {
+    display: flex;
+    height: 8px;
+}
+
+.stripe-orange {
+    flex: 1;
+    background: var(--seven-orange);
+}
+
+.stripe-green {
+    flex: 1;
+    background: var(--seven-green);
+}
+
+.stripe-red {
+    flex: 1;
+    background: var(--seven-red);
+}
+
+.header-content {
+    padding: 16px 20px;
+    text-align: center;
+    position: relative;
+}
+
+.header h1 {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--seven-orange);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.header .subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.header-back {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--seven-orange);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.header-back:hover {
+    background: var(--seven-orange-light);
+}
+
+/* ===== Welcome Section ===== */
+.welcome-section {
+    background: linear-gradient(135deg, var(--seven-orange) 0%, #FF9D45 100%);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 16px;
+    color: var(--white);
+    position: relative;
+    overflow: hidden;
+}
+
+.welcome-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}
+
+.welcome-section::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -10%;
+    width: 150px;
+    height: 150px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+}
+
+.welcome-text {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-subtitle {
+    font-size: 0.875rem;
+    opacity: 0.95;
+    position: relative;
+    z-index: 1;
+}
+
+.welcome-stats {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.stat-item {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    backdrop-filter: blur(10px);
+}
+
+/* ===== Alert Card ===== */
+.alert-card {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-left: 4px solid var(--seven-red);
+    box-shadow: var(--shadow-sm);
+}
+
+.alert-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.alert-card .alert-icon {
+    font-size: 2.5rem;
+    flex-shrink: 0;
+}
+
+.alert-card .alert-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--seven-red);
+    margin-bottom: 2px;
+}
+
+.alert-card .alert-content p {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.alert-card.warning {
+    border-left-color: var(--seven-orange);
+}
+
+.alert-card.warning .alert-content h3 {
+    color: var(--seven-orange);
+}
+
+/* ===== Feature Cards - 7-11 Style ===== */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.feature-card {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 20px 16px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--seven-orange), var(--seven-green), var(--seven-red));
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.feature-card:hover::before {
+    opacity: 1;
+}
+
+.feature-card:active {
+    transform: scale(0.98);
+}
+
+.feature-card .icon {
+    font-size: 2.75rem;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.feature-card h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.feature-card p {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.feature-card.full-width {
+    grid-column: span 2;
+}
+
+.feature-card.primary {
+    background: linear-gradient(135deg, var(--seven-green) 0%, #00A550 100%);
+    color: var(--white);
+}
+
+.feature-card.primary h3,
+.feature-card.primary p {
+    color: var(--white);
+}
+
+.feature-card.primary p {
+    opacity: 0.9;
+}
+
+.feature-card.primary::before {
+    display: none;
+}
+
+/* ===== 2.0 Gamification Cards ===== */
+.section-header.gamification {
+    background: linear-gradient(135deg, #FF6B35 0%, #9B59B6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.section-header.gamification .section-icon,
+.section-header.gamification .section-title {
+    background: linear-gradient(135deg, #FF6B35 0%, #9B59B6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.badge-new {
+    display: inline-block;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, #FF6B35, #9B59B6);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 10px;
+    margin-left: 8px;
+    animation: pulse-new 2s infinite;
+}
+
+@keyframes pulse-new {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.feature-card.gamification-card {
+    background: linear-gradient(135deg, #FFF5F2 0%, #F5F0FF 100%);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    position: relative;
+}
+
+.feature-card.gamification-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(135deg, #FF6B35, #9B59B6);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+.feature-card.gamification-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(155, 89, 182, 0.2);
+}
+
+.feature-card.gamification-card .icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.feature-card.gamification-card h3 {
+    background: linear-gradient(135deg, #FF6B35 0%, #9B59B6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+}
+
+/* ===== Admin Section ===== */
+.admin-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px dashed var(--gray-300);
+}
+
+.admin-section .section-title {
+    font-size: 0.75rem;
+    color: var(--text-hint);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+/* ===== Form Elements ===== */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 1rem;
+    border: 2px solid var(--gray-300);
+    border-radius: var(--radius-sm);
+    background: var(--white);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    color: var(--text-primary);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--seven-orange);
+    box-shadow: 0 0 0 4px var(--seven-orange-light);
+}
+
+.form-group input::placeholder {
+    color: var(--text-hint);
+}
+
+.form-group .helper-text {
+    font-size: 0.75rem;
+    color: var(--text-hint);
+    margin-top: 6px;
+}
+
+/* ===== Buttons - 7-11 Style ===== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 28px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--seven-orange) 0%, #FF9D45 100%);
+    color: var(--white);
+    box-shadow: 0 4px 12px rgba(247, 148, 29, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(247, 148, 29, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: var(--white);
+    color: var(--text-primary);
+    border: 2px solid var(--gray-300);
+}
+
+.btn-secondary:hover {
+    background: var(--gray-100);
+    border-color: var(--gray-400);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--seven-green) 0%, #00A550 100%);
+    color: var(--white);
+    box-shadow: 0 4px 12px rgba(0, 135, 62, 0.3);
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 135, 62, 0.4);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--seven-red) 0%, #FF4D4D 100%);
+    color: var(--white);
+    box-shadow: 0 4px 12px rgba(225, 27, 34, 0.3);
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(225, 27, 34, 0.4);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--seven-orange);
+    border: 2px solid var(--seven-orange);
+}
+
+.btn-outline:hover {
+    background: var(--seven-orange-light);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.btn-sm {
+    padding: 10px 16px;
+    font-size: 0.875rem;
+}
+
+.btn-lg {
+    padding: 18px 32px;
+    font-size: 1.125rem;
+}
+
+/* ===== Camera Section - 超大拍照按鈕 ===== */
+.camera-section {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+}
+
+.camera-btn {
+    background: linear-gradient(135deg, var(--seven-orange) 0%, #FF9D45 100%);
+    color: var(--white);
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: none;
+    font-size: 3.5rem;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 32px rgba(247, 148, 29, 0.4);
+    position: relative;
+}
+
+.camera-btn::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--seven-orange), var(--seven-green), var(--seven-red));
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.camera-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 40px rgba(247, 148, 29, 0.5);
+}
+
+.camera-btn:hover::before {
+    opacity: 1;
+}
+
+.camera-btn:active {
+    transform: scale(0.98);
+}
+
+.camera-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.camera-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.camera-tips {
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-top: 20px;
+    text-align: left;
+}
+
+.camera-tips h4 {
+    font-size: 0.875rem;
+    color: var(--seven-green);
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.camera-tips ul {
+    list-style: none;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.camera-tips li {
+    padding: 6px 0;
+    padding-left: 24px;
+    position: relative;
+}
+
+.camera-tips li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--seven-green);
+    font-weight: bold;
+}
+
+/* ===== Image Preview ===== */
+.image-preview {
+    position: relative;
+    margin-bottom: 16px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.image-preview img {
+    width: 100%;
+    display: block;
+}
+
+.image-preview .retake-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--white);
+    padding: 10px 16px;
+    border-radius: var(--radius-xl);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    border: none;
+    backdrop-filter: blur(10px);
+    transition: background 0.2s;
+}
+
+.image-preview .retake-btn:hover {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+/* ===== Recognition Result ===== */
+.recognition-result {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+}
+
+.result-item {
+    margin-bottom: 20px;
+}
+
+.result-item:last-child {
+    margin-bottom: 0;
+}
+
+.result-item label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.confidence-badge {
+    font-size: 0.6875rem;
+    padding: 3px 10px;
+    border-radius: var(--radius-xl);
+    font-weight: 600;
+}
+
+.confidence-high {
+    background: var(--seven-green-light);
+    color: var(--seven-green);
+}
+
+.confidence-medium {
+    background: var(--seven-orange-light);
+    color: var(--seven-orange);
+}
+
+.confidence-low {
+    background: var(--seven-red-light);
+    color: var(--seven-red);
+}
+
+/* ===== Inventory Card - 7-11 Style ===== */
+.inventory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inventory-card {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+    border-left: 4px solid var(--seven-green);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.inventory-card:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-md);
+}
+
+.inventory-card.expiring-soon {
+    border-left-color: var(--seven-red);
+}
+
+.inventory-card.expiring-soon .expiry-countdown {
+    background: var(--seven-red-light);
+    color: var(--seven-red);
+}
+
+.inventory-card.expired {
+    border-left-color: var(--gray-400);
+    opacity: 0.7;
+}
+
+.inventory-card .product-name {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.inventory-card .product-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.inventory-card .product-info span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.inventory-card .expiry-countdown {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--seven-green-light);
+    color: var(--seven-green);
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.inventory-card .actions {
+    display: flex;
+    gap: 10px;
+}
+
+.inventory-card .actions .btn {
+    flex: 1;
+    padding: 12px;
+    font-size: 0.875rem;
+}
+
+/* ===== Temperature Badge ===== */
+.temp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: var(--radius-xl);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.temp-badge.refrigerated {
+    background: #E3F2FD;
+    color: #1976D2;
+}
+
+.temp-badge.frozen {
+    background: #E1F5FE;
+    color: #0288D1;
+}
+
+.temp-badge.room-temp {
+    background: var(--seven-orange-light);
+    color: var(--seven-orange);
+}
+
+/* ===== Settings Section ===== */
+.settings-section {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+}
+
+.settings-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-primary);
+}
+
+/* ===== Toast / Notification ===== */
+.toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--gray-800);
+    color: var(--white);
+    padding: 14px 28px;
+    border-radius: var(--radius-xl);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-lg);
+    max-width: 90%;
+    text-align: center;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast.success {
+    background: var(--seven-green);
+}
+
+.toast.error {
+    background: var(--seven-red);
+}
+
+/* ===== Loading ===== */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    gap: 16px;
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--gray-200);
+    border-top-color: var(--seven-orange);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-hint);
+}
+
+.empty-state .icon {
+    font-size: 4.5rem;
+    margin-bottom: 20px;
+}
+
+.empty-state h3 {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    font-size: 0.9375rem;
+}
+
+/* ===== Modal ===== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    padding: 20px;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 400px;
+    padding: 28px;
+    transform: translateY(20px) scale(0.95);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.show .modal {
+    transform: translateY(0) scale(1);
+}
+
+.modal h3 {
+    font-size: 1.1875rem;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.modal p {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    font-size: 0.9375rem;
+}
+
+.modal .modal-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.modal .modal-actions .btn {
+    flex: 1;
+}
+
+/* ===== Barcode Input ===== */
+.barcode-input-section {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: 28px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+}
+
+.barcode-display {
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 1.75rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 24px;
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    letter-spacing: 3px;
+    color: var(--text-primary);
+}
+
+/* ===== Toolbar ===== */
+.toolbar {
+    background: var(--white);
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.toolbar .filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.toolbar .filter-btn {
+    padding: 8px 14px;
+    background: var(--gray-100);
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-secondary);
+}
+
+.toolbar .filter-btn:hover {
+    background: var(--gray-200);
+}
+
+.toolbar .filter-btn.active {
+    background: var(--seven-orange);
+    color: var(--white);
+}
+
+/* ===== Footer ===== */
+.footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-hint);
+    font-size: 0.75rem;
+}
+
+.footer-stripes {
+    display: flex;
+    height: 4px;
+    margin-bottom: 16px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+/* 版權聲明 */
+.copyright {
+    text-align: center;
+    padding: 20px 16px;
+    margin-top: 24px;
+    border-top: 1px solid var(--gray-200);
+    font-size: 0.7rem;
+    color: var(--text-hint);
+    line-height: 1.7;
+}
+
+.copyright-brand {
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.copyright-notice {
+    margin-top: 8px;
+}
+
+.copyright-contact {
+    margin-top: 6px;
+    font-size: 0.65rem;
+    opacity: 0.8;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 360px) {
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .feature-card.full-width {
+        grid-column: span 1;
+    }
+    
+    .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .toolbar .filters {
+        justify-content: center;
+    }
+}
+
+/* ===== Utility Classes ===== */
+.hidden {
+    display: none !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+
+.text-success { color: var(--seven-green); }
+.text-danger { color: var(--seven-red); }
+.text-warning { color: var(--seven-orange); }
+.text-muted { color: var(--text-hint); }
+/* ========================================
+   吉祥物圖片樣式
+   ======================================== */
+.mascot-container {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.mascot-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    box-shadow: 0 4px 16px rgba(46, 204, 113, 0.3);
+    border: 4px solid #2ecc71;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.mascot-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+}
+
+/* ========================================
+   優化歡迎區塊
+   ======================================== */
+.welcome-section {
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+    border-radius: 16px;
+    padding: 24px 20px;
+    margin-bottom: 20px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(46, 204, 113, 0.2);
+    position: relative;
+    overflow: visible;
+}
+
+/* 覆蓋掉舊的偽元素 */
+.welcome-section::before,
+.welcome-section::after {
+    display: none;
+}
+
+.welcome-text {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.welcome-subtitle {
+    font-size: 1rem;
+    color: #2ecc71;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+/* ========================================
+   統計數字優化
+   ======================================== */
+.welcome-stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed rgba(46, 204, 113, 0.3);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #F7941D;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   區塊標題優化
+   ======================================== */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 24px 0 12px 0;
+    padding-left: 4px;
+}
+
+.section-header .section-icon {
+    font-size: 1.2rem;
+}
+
+.section-header .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.section-header.admin .section-title {
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   功能卡片優化
+   ======================================== */
+.feature-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--gray-200);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    border-color: #2ecc71;
+}
+
+.feature-card:active {
+    transform: translateY(0);
+}
+
+.feature-card .icon {
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+}
+
+.feature-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.feature-card p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* 管理員卡片樣式 */
+.feature-card.admin-card {
+    background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+    border: 1px dashed var(--gray-300);
+}
+
+.feature-card.admin-card:hover {
+    border-color: #F7941D;
+    border-style: solid;
+}
+
+/* ========================================
+   效期提醒卡片優化
+   ======================================== */
+.alert-card {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+    border: 2px solid #e74c3c;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    animation: pulse-alert 2s infinite;
+}
+
+.alert-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(231, 76, 60, 0.2);
+}
+
+@keyframes pulse-alert {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); }
+}
+
+.alert-icon {
+    font-size: 2rem;
+}
+
+.alert-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #c0392b;
+    margin-bottom: 2px;
+}
+
+.alert-content p {
+    font-size: 0.85rem;
+    color: #e74c3c;
+}
+
+.alert-card.hidden {
+    display: none;
+}
+```
+
+---
+
+## ✅ 完成後的效果
+```
+┌─────────────────────────────┐
+│    🏪 潮欣小幫手            │
+│   便利商店生鮮品效期管理     │
+├─────────────────────────────┤
+│                             │
+│      [可愛吉祥物圖片]        │
+│                             │
+│      👋 歡迎回來！           │
+│  💚 有我在，效期管理變簡單！  │
+│                             │
+│     12          3           │
+│   庫存商品    今日登記       │
+│                             │
+├─────────────────────────────┤
+│  ⚠️ 有 2 個商品需要處理！    │  ← 有問題才會顯示
+├─────────────────────────────┤
+│  ⭐ 主要功能                 │
+│  ┌─────┐  ┌─────┐          │
+│  │ 📸  │  │ 📱  │          │
+│  │智慧  │  │快速  │          │
+│  │登記  │  │登記  │          │
+│  └─────┘  └─────┘          │
+│  ┌─────┐  ┌─────┐          │
+│  │ 📋  │  │ 📦  │          │
+│  │庫存  │  │商品  │          │
+│  │管理  │  │資料庫│          │
+│  └─────┘  └─────┘          │
+├─────────────────────────────┤
+│  🔐 管理員功能               │
+│  ┌─────┐  ┌─────┐          │
+│  │ ⚙️  │  │ 🤖  │          │
+│  │系統  │  │LINE │          │
+│  │設定  │  │Bot  │          │
+│  └─────┘  └─────┘          │
+└─────────────────────────────┘

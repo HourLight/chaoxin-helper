@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#F7941D">
+    <title>使用說明 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .help-section {
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        .help-section h2 {
+            font-size: 1.1rem;
+            color: var(--seven-orange);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .help-section p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+        .step-list li {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: var(--gray-50);
+            border-radius: var(--radius-md);
+        }
+        .step-number {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--seven-orange), var(--seven-green));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .step-content h4 {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .step-content p {
+            font-size: 0.85rem;
+            color: var(--text-hint);
+            margin: 0;
+        }
+        .tip-box {
+            background: linear-gradient(135deg, #FFF8E1, #FFFDE7);
+            border-left: 4px solid #FFC107;
+            padding: 12px 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            margin-top: 12px;
+        }
+        .tip-box p {
+            font-size: 0.85rem;
+            color: #5D4037;
+            margin: 0;
+        }
+        .keyword-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .keyword {
+            background: var(--seven-orange-light);
+            color: var(--seven-orange-dark);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .mascot-bubble {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            background: linear-gradient(135deg, #E8F5E9, #F1F8E9);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            margin-top: 16px;
+        }
+        .mascot-bubble .icon {
+            font-size: 2rem;
+        }
+        .mascot-bubble .text {
+            font-size: 0.9rem;
+            color: #2E7D32;
+            line-height: 1.7;
+        }
+        /* 小幫手對話框 */
+        .mascot-welcome {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            background: linear-gradient(135deg, #FFF8E1, #FFFDE7);
+            padding: 20px;
+            border-radius: var(--radius-lg);
+            margin-bottom: 16px;
+            border: 2px solid #FFE082;
+        }
+        .mascot-welcome img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 3px solid #F7941D;
+        }
+        .mascot-welcome .speech {
+            flex: 1;
+        }
+        .mascot-welcome .speech h3 {
+            font-size: 1rem;
+            color: #F57C00;
+            margin-bottom: 8px;
+        }
+        .mascot-welcome .speech p {
+            font-size: 0.9rem;
+            color: #5D4037;
+            line-height: 1.7;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-stripes">
+            <div class="stripe-orange"></div>
+            <div class="stripe-green"></div>
+            <div class="stripe-red"></div>
+        </div>
+        <div class="header-content">
+            <h1>📖 使用說明</h1>
+            <p class="subtitle">三分鐘上手，效期管理 So Easy！</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 小幫手歡迎 -->
+        <div class="mascot-welcome">
+            <img src="/images/mascot.png" alt="潮欣小幫手">
+            <div class="speech">
+                <h3>👋 嗨～我是潮欣小幫手！</h3>
+                <p>
+                    我是你的效期管理小夥伴！不管是進貨登記、效期追蹤還是庫存管理，通通交給我就對啦～
+                    <br><br>
+                    別擔心不會用，這份說明超簡單的，跟著做就會囉！💪
+                </p>
+            </div>
+        </div>
+
+        <!-- 功能一：智慧商品登記 -->
+        <div class="help-section">
+            <h2>📸 智慧商品登記（超推薦！）</h2>
+            <p>這是我最厲害的功能！拍張照片，AI 就會自動幫你讀取條碼、商品名稱和效期，不用手打超省時～</p>
+            
+            <ul class="step-list">
+                <li>
+                    <span class="step-number">1</span>
+                    <div class="step-content">
+                        <h4>點「智慧商品登記」</h4>
+                        <p>首頁第一個就是，很好找！</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">2</span>
+                    <div class="step-content">
+                        <h4>拍一張照片</h4>
+                        <p>把條碼、商品名、效期都拍進去最好喔～</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">3</span>
+                    <div class="step-content">
+                        <h4>確認資訊</h4>
+                        <p>AI 辨識完會顯示結果，看一下對不對</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">4</span>
+                    <div class="step-content">
+                        <h4>按確認登記</h4>
+                        <p>沒問題就送出，搞定！🎉</p>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="tip-box">
+                <p>💡 <strong>小秘訣：</strong>光線充足、照片清楚，辨識更準確喔！如果 AI 沒辨識到，手動輸入也很快的～</p>
+            </div>
+        </div>
+
+        <!-- 功能二：快速商品登記 -->
+        <div class="help-section">
+            <h2>📱 快速商品登記</h2>
+            <p>如果商品之前登記過，用條碼掃一下就能快速登記，系統會自動帶入商品資料！</p>
+            
+            <ul class="step-list">
+                <li>
+                    <span class="step-number">1</span>
+                    <div class="step-content">
+                        <h4>掃描或輸入條碼</h4>
+                        <p>用掃描器或手動輸入都可以</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">2</span>
+                    <div class="step-content">
+                        <h4>選擇效期</h4>
+                        <p>點日期選擇器，選商品的到期日</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">3</span>
+                    <div class="step-content">
+                        <h4>填數量，送出</h4>
+                        <p>預設是 1，可以改成實際數量</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 功能三：庫存管理 -->
+        <div class="help-section">
+            <h2>📋 庫存管理</h2>
+            <p>這裡可以看到所有在庫的商品，還有效期倒數！快到期的會排在最上面，超一目了然～</p>
+            
+            <ul class="step-list">
+                <li>
+                    <span class="step-number">✓</span>
+                    <div class="step-content">
+                        <h4>商品售出了？</h4>
+                        <p>點「已售出」按鈕，從庫存移除</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">✓</span>
+                    <div class="step-content">
+                        <h4>商品要報廢？</h4>
+                        <p>點「已報廢」按鈕，會記錄下來</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">✓</span>
+                    <div class="step-content">
+                        <h4>要提醒大家？</h4>
+                        <p>點「提醒下架」會發 LINE 通知到群組</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- LINE Bot 使用 -->
+        <div class="help-section">
+            <h2>🤖 LINE Bot 小幫手</h2>
+            <p>把我加進 LINE 群組，就能用關鍵字跟我互動喔！不用開網頁也能查資料～</p>
+            
+            <p><strong>試試看這些關鍵字：</strong></p>
+            <div class="keyword-list">
+                <span class="keyword">簽到</span>
+                <span class="keyword">抽籤</span>
+                <span class="keyword">效期</span>
+                <span class="keyword">今天</span>
+                <span class="keyword">庫存</span>
+                <span class="keyword">選單</span>
+            </div>
+
+            <div class="mascot-bubble">
+                <span class="icon">📸</span>
+                <div class="text">
+                    <strong>直接傳照片給我</strong>，我也會幫你辨識喔！拍完商品傳到群組，我就會自動分析～
+                </div>
+            </div>
+        </div>
+
+        <!-- 溫馨提醒 -->
+        <div class="help-section">
+            <h2>💚 溫馨小提醒</h2>
+            <p>效期管理不只是工作，更是守護顧客健康的重要任務！每一次認真檢查，都是在傳遞你的專業和用心 ✨</p>
+            <p>有任何問題隨時問我，我會一直在這裡陪著你～</p>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <p style="font-size: 1.5rem;">🧡</p>
+                <p style="font-size: 0.9rem; color: var(--text-hint);">你很棒，繼續加油！</p>
+            </div>
+        </div>
+
+        <!-- 返回按鈕 -->
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <a href="/pages/game-guide.html" class="btn btn-secondary" style="flex: 1; text-align: center;">
+                🎮 遊戲說明
+            </a>
+            <a href="/" class="btn btn-primary" style="flex: 1; text-align: center;">
+                🏠 回首頁
+            </a>
+        </div>
+
+        <div style="height: 40px;"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
