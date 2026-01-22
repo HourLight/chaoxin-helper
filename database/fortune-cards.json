@@ -57,7 +57,7 @@
     {
       "code": "A06",
       "series": "A",
-      "rarity": "Quest",
+      "rarity": "R",
       "title": "靈魂契約",
       "subtitle": "神隊友召喚",
       "scenario": "與同事合作完成任務",
@@ -120,7 +120,7 @@
     {
       "code": "A13",
       "series": "A",
-      "rarity": "Quest",
+      "rarity": "R",
       "title": "新生蛻變",
       "subtitle": "除舊佈新",
       "scenario": "清理過期品或整理倉庫",
@@ -138,7 +138,7 @@
     {
       "code": "A15",
       "series": "A",
-      "rarity": "Quest",
+      "rarity": "R",
       "title": "破除執念",
       "subtitle": "專注當下",
       "scenario": "放下手機專心工作",
@@ -147,7 +147,7 @@
     {
       "code": "A16",
       "series": "A",
-      "rarity": "Quest",
+      "rarity": "R",
       "title": "重生轉化",
       "subtitle": "系統升級",
       "scenario": "遇到突發的小插曲",
@@ -255,7 +255,7 @@
     {
       "code": "007",
       "series": "0",
-      "rarity": "Quest",
+      "rarity": "R",
       "title": "冬青",
       "subtitle": "身體對話",
       "scenario": "感受到肌肉的酸楚",
@@ -732,7 +732,7 @@
     {
       "code": "060",
       "series": "0",
-      "rarity": "Quest",
+      "rarity": "R",
       "title": "絲柏",
       "subtitle": "轉念瞬間",
       "scenario": "突然覺得「隨便啦」",
