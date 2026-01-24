@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#F7941D">
     <title>快速商品登記 - 潮欣小幫手</title>
     <link rel="stylesheet" href="/css/style.css">
+    <!-- 條碼掃描函式庫 -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         .barcode-input-wrapper {
             position: relative;
@@ -25,7 +27,34 @@
             top: 50%;
             transform: translateY(-50%);
             font-size: 1.5rem;
-            opacity: 0.5;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+        
+        .scan-icon:hover {
+            opacity: 1;
+            transform: translateY(-50%) scale(1.1);
+        }
+        
+        .scanner-container {
+            background: #000;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        
+        .scanner-container.hidden {
+            display: none;
+        }
+        
+        #scanner {
+            width: 100%;
+            min-height: 250px;
+        }
+        
+        #scanner video {
+            width: 100% !important;
+            border-radius: var(--radius-md);
         }
         
         .product-found {
@@ -221,15 +250,23 @@
             <div class="settings-section">
                 <h3>1️⃣ 掃描或輸入條碼</h3>
                 
+                <!-- 相機掃描區域 -->
+                <div id="scannerContainer" class="scanner-container hidden">
+                    <div id="scanner"></div>
+                    <button class="btn btn-secondary" id="closeScannerBtn" style="margin-top: 10px;">
+                        ✕ 關閉相機
+                    </button>
+                </div>
+                
                 <div class="form-group">
                     <div class="barcode-input-wrapper">
                         <input type="text" id="barcodeInput" 
                                placeholder="用掃描器掃～或手動輸入" 
                                inputmode="numeric" 
                                autofocus>
-                        <span class="scan-icon">📷</span>
+                        <span class="scan-icon" id="openScannerBtn" style="cursor: pointer;">📷</span>
                     </div>
-                    <p class="helper-text">掃描器掃完會自動跳下一步喔！</p>
+                    <p class="helper-text">點 📷 開相機掃條碼，或用掃描器直接掃！</p>
                 </div>
                 
                 <button class="btn btn-primary" id="lookupBtn">
@@ -240,8 +277,8 @@
             <div class="camera-tips" style="margin-top: 16px;">
                 <h4>💡 小提示</h4>
                 <ul>
-                    <li>用藍牙掃描器最快，掃一下就好</li>
-                    <li>沒有掃描器？手機鏡頭 APP 也可以</li>
+                    <li>點 📷 可以開相機掃條碼</li>
+                    <li>用藍牙掃描器更快</li>
                     <li>或者直接手打條碼數字</li>
                 </ul>
             </div>
@@ -422,6 +459,125 @@
         let currentProduct = null;
         let quantity2a = 1;
         let quantity2b = 1;
+        
+        // ===== 相機掃描功能 =====
+        let html5QrCode = null;
+        const scannerContainer = document.getElementById('scannerContainer');
+        const openScannerBtn = document.getElementById('openScannerBtn');
+        const closeScannerBtn = document.getElementById('closeScannerBtn');
+        
+        // 檢查相機是否可用
+        async function checkCameraAvailable() {
+            try {
+                // 檢查是否支援 mediaDevices
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    return { available: false, reason: '瀏覽器不支援相機功能' };
+                }
+                
+                // 檢查是否有相機裝置
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(d => d.kind === 'videoinput');
+                
+                if (cameras.length === 0) {
+                    return { available: false, reason: '找不到相機裝置' };
+                }
+                
+                return { available: true, cameras: cameras };
+            } catch (err) {
+                return { available: false, reason: err.message };
+            }
+        }
+        
+        // 開啟相機
+        openScannerBtn.onclick = async () => {
+            console.log('🎬 嘗試開啟相機...');
+            
+            // 先檢查相機是否可用
+            const check = await checkCameraAvailable();
+            if (!check.available) {
+                showToast(`😅 ${check.reason}，請手動輸入條碼`, 'error');
+                console.error('相機不可用:', check.reason);
+                return;
+            }
+            
+            console.log('📷 找到相機:', check.cameras.length, '個');
+            
+            // 顯示掃描區域
+            scannerContainer.classList.remove('hidden');
+            
+            try {
+                // 初始化掃描器
+                if (!html5QrCode) {
+                    html5QrCode = new Html5Qrcode("scanner");
+                }
+                
+                // 取得相機設定
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 100 },
+                    aspectRatio: 1.5,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39
+                    ]
+                };
+                
+                // 嘗試啟動相機
+                await html5QrCode.start(
+                    { facingMode: "environment" },  // 優先使用後鏡頭
+                    config,
+                    (decodedText) => {
+                        // 掃描成功！
+                        console.log('✅ 掃描成功:', decodedText);
+                        barcodeInput.value = decodedText;
+                        if (navigator.vibrate) navigator.vibrate(100);
+                        showToast('✅ 掃描成功！', 'success');
+                        stopScanner();
+                        lookupBarcode();
+                    },
+                    (errorMessage) => {
+                        // 持續掃描中，忽略錯誤
+                    }
+                );
+                
+                console.log('📷 相機已啟動');
+                showToast('📷 相機已開啟，對準條碼', 'info');
+                
+            } catch (err) {
+                console.error('❌ 相機啟動失敗:', err);
+                scannerContainer.classList.add('hidden');
+                
+                // 根據錯誤類型給出不同提示
+                if (err.name === 'NotAllowedError') {
+                    showToast('😅 請允許使用相機權限', 'error');
+                } else if (err.name === 'NotFoundError') {
+                    showToast('😅 找不到相機，請手動輸入', 'error');
+                } else if (err.name === 'NotReadableError') {
+                    showToast('😅 相機被其他程式使用中', 'error');
+                } else if (err.message && err.message.includes('HTTPS')) {
+                    showToast('😅 需要 HTTPS 才能使用相機', 'error');
+                } else {
+                    showToast(`😅 相機開啟失敗：${err.message || '未知錯誤'}`, 'error');
+                }
+            }
+        };
+        
+        // 關閉相機
+        closeScannerBtn.onclick = stopScanner;
+        
+        function stopScanner() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    scannerContainer.classList.add('hidden');
+                }).catch(err => console.error(err));
+            } else {
+                scannerContainer.classList.add('hidden');
+            }
+        }
 
         // ===== 條碼輸入 =====
         barcodeInput.addEventListener('keypress', (e) => {
@@ -459,18 +615,37 @@
             currentBarcode = barcode;
             
             try {
-                // 查詢商品記憶
-                const product = await fetch(`/api/products/barcode/${barcode}`).then(r => {
-                    if (r.ok) return r.json();
-                    return null;
-                });
+                // 🆕 使用智慧查詢（會查詢外部資料庫）
+                const product = await smartLookupBarcode(barcode);
                 
                 if (product) {
-                    // 找到了！顯示快速登記
+                    // 找到了！
                     currentProduct = product;
+                    
+                    // 顯示來源提示
+                    const sourceName = getSourceName(product.source);
+                    if (product.source !== 'local') {
+                        showToast(`✨ 從 ${sourceName} 找到商品資料！`, 'success');
+                        
+                        // 外部資料庫找到的，先建立本地商品記錄
+                        const result = await api('/products', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                barcode: barcode,
+                                name: product.name,
+                                category: product.category || null,
+                                storage_temp: product.storage_temp || 'refrigerated'
+                            })
+                        });
+                        currentProduct.id = result.id;
+                        currentProduct.product_id = result.id;
+                    } else {
+                        currentProduct.id = product.product_id;
+                    }
+                    
                     document.getElementById('foundName').textContent = product.name;
                     document.getElementById('foundInfo').textContent = 
-                        `條碼：${product.barcode} · ${getTempText(product.storage_temp)}`;
+                        `條碼：${barcode} · ${getTempText(product.storage_temp || 'refrigerated')}`;
                     goStep('2a');
                 } else {
                     // 新商品
@@ -479,6 +654,7 @@
                     goStep('2b');
                 }
             } catch (err) {
+                console.error('查詢失敗:', err);
                 showToast('查詢失敗', 'error');
             }
         }
@@ -648,6 +824,7 @@
 
         // ===== 重置表單 =====
         function resetForm() {
+            stopScanner();  // 關閉相機
             barcodeInput.value = '';
             document.getElementById('newName').value = '';
             document.getElementById('newCategory').value = '';
@@ -666,6 +843,8 @@
 
         // ===== 切換步驟 =====
         function goStep(step) {
+            if (step !== '1') stopScanner();  // 離開步驟1時關閉相機
+            
             step1.classList.toggle('hidden', step !== '1');
             step2a.classList.toggle('hidden', step !== '2a');
             step2b.classList.toggle('hidden', step !== '2b');

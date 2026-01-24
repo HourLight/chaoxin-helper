@@ -221,11 +221,15 @@ async function handleEvent(event) {
                     }
                 }
 
-                // 計算效期倒數
+                // 計算效期倒數（用日期比較，不是小時差）
                 const expiryDate = new Date(expiry);
                 const now = new Date();
-                const diffTime = expiryDate - now;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                // 只比較日期部分（年月日）
+                const expiryDay = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const diffDays = Math.round((expiryDay - today) / (1000 * 60 * 60 * 24));
+                
                 let expiryText = '';
                 if (diffDays < 0) {
                     expiryText = `（已過期 ${Math.abs(diffDays)} 天）`;

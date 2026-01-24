@@ -3,9 +3,52 @@
  */
 
 const express = require('express');
+const barcodeLookup = require('../services/barcode-lookup');
 
 module.exports = function(db) {
     const router = express.Router();
+
+    // 🆕 智慧條碼查詢（整合外部資料庫）
+    // 查詢順序：本地 → Open Food Facts → UPCitemdb
+    router.get('/lookup/:barcode', async (req, res) => {
+        try {
+            const { barcode } = req.params;
+            
+            if (!barcode) {
+                return res.status(400).json({ error: '請提供條碼' });
+            }
+
+            // 查詢條碼（會依序嘗試各個資料庫）
+            const result = await barcodeLookup.lookupBarcode(barcode, db);
+            
+            if (result) {
+                res.json({
+                    success: true,
+                    found: true,
+                    source: result.source,
+                    product: {
+                        barcode: result.barcode,
+                        name: result.name,
+                        brand: result.brand,
+                        category: result.category,
+                        storage_temp: result.storage_temp || 'refrigerated',
+                        image_url: result.image_url,
+                        product_id: result.product_id || null
+                    }
+                });
+            } else {
+                res.json({
+                    success: true,
+                    found: false,
+                    message: '找不到此條碼的商品資料，請手動輸入或使用 AI 辨識'
+                });
+            }
+            
+        } catch (error) {
+            console.error('條碼查詢錯誤:', error);
+            res.status(500).json({ error: '查詢失敗', details: error.message });
+        }
+    });
 
     // 取得所有商品
     router.get('/', (req, res) => {

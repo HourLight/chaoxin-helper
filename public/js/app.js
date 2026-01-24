@@ -675,7 +675,7 @@ function initBarcodeInput(inputEl, onComplete) {
 }
 
 /**
- * 查詢條碼對應的商品
+ * 查詢條碼對應的商品（本地資料庫）
  */
 async function lookupBarcode(barcode) {
     try {
@@ -684,6 +684,43 @@ async function lookupBarcode(barcode) {
     } catch (error) {
         return null; // 商品不存在
     }
+}
+
+/**
+ * 🆕 智慧條碼查詢（整合外部資料庫）
+ * 查詢順序：本地 → Open Food Facts → UPCitemdb
+ * @param {string} barcode - 商品條碼
+ * @returns {Promise<Object|null>} 商品資訊或 null
+ */
+async function smartLookupBarcode(barcode) {
+    try {
+        const response = await api(`/products/lookup/${barcode}`);
+        
+        if (response.found) {
+            console.log(`✅ 從 ${getSourceName(response.source)} 找到商品:`, response.product.name);
+            return {
+                ...response.product,
+                source: response.source
+            };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('智慧條碼查詢錯誤:', error);
+        return null;
+    }
+}
+
+/**
+ * 取得資料來源名稱
+ */
+function getSourceName(source) {
+    const names = {
+        'local': '本地資料庫',
+        'open_food_facts': 'Open Food Facts',
+        'upcitemdb': 'UPCitemdb'
+    };
+    return names[source] || source;
 }
 
 // ===== 初始化 =====

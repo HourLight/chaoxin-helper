@@ -43,15 +43,22 @@ module.exports = function(db) {
             
             // 計算效期倒數
             const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
             items.forEach(item => {
                 const expiryDate = new Date(item.expiry_date);
+                const expiryDay = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+                
+                // 用日期比較計算天數差（不是小時差）
+                const diffDays = Math.round((expiryDay - today) / (1000 * 60 * 60 * 24));
+                
+                // 小時差還是用原本的方式（精確計算）
                 const diffTime = expiryDate - now;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
                 
                 item.days_until_expiry = diffDays;
                 item.hours_until_expiry = diffHours;
-                item.is_expiring_soon = diffHours <= 24 && diffHours > 0;
+                item.is_expiring_soon = diffDays === 0 || (diffDays === 1 && diffHours <= 24);
                 item.is_expired = diffTime <= 0;
             });
             

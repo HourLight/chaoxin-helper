@@ -172,8 +172,8 @@ app.get('/reports', (req, res) => {
 const fortuneService = require('./services/fortune')(db);
 fortuneService.initFortuneCards();
 
-// 定時任務 - 每天早上 9 點發送「今天」效期提醒
-const cronTime = process.env.NOTIFICATION_CRON_TIME || '0 9 * * *';
+// 定時任務 - 每天早上 10 點發送「今天」效期提醒
+const cronTime = process.env.NOTIFICATION_CRON_TIME || '0 10 * * *';
 cron.schedule(cronTime, async () => {
     console.log('執行定時效期提醒任務（今天到期）...');
     try {
@@ -183,6 +183,8 @@ cron.schedule(cronTime, async () => {
     } catch (error) {
         console.error('定時提醒發送失敗:', error);
     }
+}, {
+    timezone: "Asia/Taipei"
 });
 
 // 定時任務 - 每天晚上 9 點發送「明天」效期提醒
@@ -195,6 +197,8 @@ cron.schedule('0 21 * * *', async () => {
     } catch (error) {
         console.error('明天到期提醒發送失敗:', error);
     }
+}, {
+    timezone: "Asia/Taipei"
 });
 
 // 啟動伺服器
