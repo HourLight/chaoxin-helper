@@ -36,26 +36,36 @@ module.exports = function(db) {
             const empId1 = parseInt(id1);
             const empId2 = parseInt(id2);
 
-            // 取得兩個員工
-            const emp1Result = await db.query('SELECT id, sort_order FROM employees WHERE id = $1', [empId1]);
-            const emp2Result = await db.query('SELECT id, sort_order FROM employees WHERE id = $1', [empId2]);
+            // 直接交換兩個員工的 sort_order
+            // 先取得所有員工的當前順序
+            const allEmps = await db.query(
+                'SELECT id, sort_order FROM employees WHERE is_active = true ORDER BY sort_order ASC, id ASC'
+            );
             
-            if (emp1Result.rows.length === 0 || emp2Result.rows.length === 0) {
+            // 找到兩個員工的索引位置
+            let idx1 = -1, idx2 = -1;
+            for (let i = 0; i < allEmps.rows.length; i++) {
+                if (allEmps.rows[i].id === empId1) idx1 = i;
+                if (allEmps.rows[i].id === empId2) idx2 = i;
+            }
+            
+            if (idx1 === -1 || idx2 === -1) {
                 return res.status(404).json({ error: '找不到員工' });
             }
             
-            const emp1 = emp1Result.rows[0];
-            const emp2 = emp2Result.rows[0];
+            // 交換位置：重新分配 sort_order
+            const newOrder = [...allEmps.rows];
+            [newOrder[idx1], newOrder[idx2]] = [newOrder[idx2], newOrder[idx1]];
             
-            // 確保 sort_order 是數字
-            const order1 = parseInt(emp1.sort_order) || 0;
-            const order2 = parseInt(emp2.sort_order) || 0;
+            // 更新所有員工的 sort_order
+            for (let i = 0; i < newOrder.length; i++) {
+                await db.query(
+                    'UPDATE employees SET sort_order = $1 WHERE id = $2',
+                    [i + 1, newOrder[i].id]
+                );
+            }
             
-            // 交換 sort_order
-            await db.query('UPDATE employees SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [order2, empId1]);
-            await db.query('UPDATE employees SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [order1, empId2]);
-            
-            console.log(`✅ 員工排序交換: ${empId1} (order:${order2}) <-> ${empId2} (order:${order1})`);
+            console.log(`✅ 員工排序交換成功: ${empId1} <-> ${empId2}`);
             res.json({ success: true });
         } catch (error) {
             console.error('交換員工位置失敗:', error);
@@ -63,41 +73,33 @@ module.exports = function(db) {
         }
     });
 
-    // 取得所有員工（並自動修復 sort_order）
+    // 取得所有員工
     router.get('/employees', async (req, res) => {
         try {
-            // 先檢查是否有 sort_order 都是 0 的情況
-            const checkResult = await db.query(
-                'SELECT COUNT(*) as count FROM employees WHERE is_active = true AND sort_order = 0'
+            // 每次取得時，確保 sort_order 是連續的
+            const allEmps = await db.query(
+                'SELECT * FROM employees WHERE is_active = true ORDER BY sort_order ASC, id ASC'
             );
-            const zeroCount = parseInt(checkResult.rows[0].count);
             
-            // 如果有多個 sort_order 是 0，自動修復
-            if (zeroCount > 1) {
-                console.log('🔧 修復員工排序...');
-                const allEmps = await db.query(
-                    'SELECT id FROM employees WHERE is_active = true ORDER BY role DESC, id ASC'
-                );
-                for (let i = 0; i < allEmps.rows.length; i++) {
+            // 重新編號確保連續（1, 2, 3...）
+            for (let i = 0; i < allEmps.rows.length; i++) {
+                if (allEmps.rows[i].sort_order !== i + 1) {
                     await db.query(
                         'UPDATE employees SET sort_order = $1 WHERE id = $2',
                         [i + 1, allEmps.rows[i].id]
                     );
+                    allEmps.rows[i].sort_order = i + 1;
                 }
-                console.log('✅ 修復完成，共', allEmps.rows.length, '位員工');
             }
             
-            const result = await db.query(
-                'SELECT * FROM employees WHERE is_active = true ORDER BY sort_order ASC, id ASC'
-            );
-            res.json(result.rows);
+            res.json(allEmps.rows);
         } catch (error) {
             console.error('取得員工列表失敗:', error);
             res.status(500).json({ error: '取得員工列表失敗' });
         }
     });
 
-    // 新增員工
+    // 新增員工（新員工排在最後）
     router.post('/employees', async (req, res) => {
         try {
             const { name, line_user_id, phone, role } = req.body;
@@ -105,9 +107,9 @@ module.exports = function(db) {
                 return res.status(400).json({ error: '請輸入員工姓名' });
             }
 
-            // 取得目前最大 sort_order
-            const maxResult = await db.query('SELECT COALESCE(MAX(sort_order), 0) as max_order FROM employees');
-            const newOrder = maxResult.rows[0].max_order + 1;
+            // 取得目前員工數量作為新的 sort_order
+            const countResult = await db.query('SELECT COUNT(*) as count FROM employees WHERE is_active = true');
+            const newOrder = parseInt(countResult.rows[0].count) + 1;
 
             const result = await db.query(
                 'INSERT INTO employees (name, line_user_id, phone, role, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING *',
@@ -118,74 +120,6 @@ module.exports = function(db) {
         } catch (error) {
             console.error('新增員工失敗:', error);
             res.status(500).json({ error: '新增員工失敗' });
-        }
-    });
-
-    // 員工排序 - 上移
-    router.post('/employees/:id/move-up', async (req, res) => {
-        try {
-            const { id } = req.params;
-            
-            // 取得目前員工
-            const currentResult = await db.query('SELECT * FROM employees WHERE id = $1', [id]);
-            if (currentResult.rows.length === 0) {
-                return res.status(404).json({ error: '找不到員工' });
-            }
-            const current = currentResult.rows[0];
-            
-            // 找到上一個員工（sort_order 比目前小的最大值）
-            const prevResult = await db.query(
-                'SELECT * FROM employees WHERE sort_order < $1 AND is_active = true ORDER BY sort_order DESC LIMIT 1',
-                [current.sort_order]
-            );
-            
-            if (prevResult.rows.length === 0) {
-                return res.json({ success: true, message: '已經在最上面了' });
-            }
-            const prev = prevResult.rows[0];
-            
-            // 交換 sort_order
-            await db.query('UPDATE employees SET sort_order = $1 WHERE id = $2', [prev.sort_order, current.id]);
-            await db.query('UPDATE employees SET sort_order = $1 WHERE id = $2', [current.sort_order, prev.id]);
-            
-            res.json({ success: true });
-        } catch (error) {
-            console.error('員工上移失敗:', error);
-            res.status(500).json({ error: '操作失敗' });
-        }
-    });
-
-    // 員工排序 - 下移
-    router.post('/employees/:id/move-down', async (req, res) => {
-        try {
-            const { id } = req.params;
-            
-            // 取得目前員工
-            const currentResult = await db.query('SELECT * FROM employees WHERE id = $1', [id]);
-            if (currentResult.rows.length === 0) {
-                return res.status(404).json({ error: '找不到員工' });
-            }
-            const current = currentResult.rows[0];
-            
-            // 找到下一個員工（sort_order 比目前大的最小值）
-            const nextResult = await db.query(
-                'SELECT * FROM employees WHERE sort_order > $1 AND is_active = true ORDER BY sort_order ASC LIMIT 1',
-                [current.sort_order]
-            );
-            
-            if (nextResult.rows.length === 0) {
-                return res.json({ success: true, message: '已經在最下面了' });
-            }
-            const next = nextResult.rows[0];
-            
-            // 交換 sort_order
-            await db.query('UPDATE employees SET sort_order = $1 WHERE id = $2', [next.sort_order, current.id]);
-            await db.query('UPDATE employees SET sort_order = $1 WHERE id = $2', [current.sort_order, next.id]);
-            
-            res.json({ success: true });
-        } catch (error) {
-            console.error('員工下移失敗:', error);
-            res.status(500).json({ error: '操作失敗' });
         }
     });
 

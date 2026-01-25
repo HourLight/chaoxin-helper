@@ -31,21 +31,56 @@
         .schedule-table th.day-header { width: calc((100% - 70px) / 7); }
         
         .schedule-table td.employee-name { 
-            background: #f9f9f9; font-weight: bold; padding: 8px 5px; font-size: 13px;
+            background: #f9f9f9; font-weight: bold; padding: 5px; font-size: 13px;
             position: sticky; left: 0; z-index: 1; white-space: nowrap;
         }
         
-        /* 排序按鈕 */
-        .sort-btn { 
-            cursor: pointer; 
-            font-size: 10px; 
-            opacity: 0.6; 
-            padding: 2px;
-            display: inline-block;
-            transition: opacity 0.2s;
+        /* 員工欄位排版 */
+        .schedule-table td.employee-name {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        .sort-btn:hover { opacity: 1; }
-        .sort-btn.disabled { opacity: 0.2; cursor: not-allowed; }
+        
+        .emp-label {
+            flex: 1;
+        }
+        
+        /* 排序按鈕組 */
+        .sort-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .sort-arrow {
+            width: 20px;
+            height: 16px;
+            padding: 0;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 8px;
+            line-height: 1;
+            color: #666;
+            transition: all 0.2s;
+        }
+        
+        .sort-arrow:hover:not(:disabled) {
+            background: var(--primary-orange);
+            color: white;
+            border-color: var(--primary-orange);
+        }
+        
+        .sort-arrow:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .sort-arrow:active:not(:disabled) {
+            transform: scale(0.9);
+        }
         
         /* 班別格子 */
         .shift-cell { padding: 5px; cursor: pointer; min-height: 50px; transition: all 0.2s; position: relative; }
@@ -343,43 +378,78 @@
                     return `<th class="day-header" style="${isToday ? 'background: var(--primary-orange);' : ''}">${date.getDate()}(${dayNames[date.getDay()]})</th>`;
                 }).join('');
 
+            // 儲存員工順序供排序用
+            window.scheduleEmployees = data.data.map(r => r.employee);
+
             document.getElementById('tableBody').innerHTML = data.data.map((row, index) => {
                 const emp = row.employee;
+                const totalCount = data.data.length;
                 const cells = data.days.map(d => {
                     const key = `${emp.id}-${d}`, schedule = scheduleData[key] || {};
                     return `<td class="shift-cell ${schedule.notes ? 'has-note' : ''}" onclick="openShiftModal(${emp.id}, '${d}', '${emp.name}')" data-emp="${emp.id}" data-date="${d}">${renderShiftButton(schedule.shift_type || '', schedule.notes || '')}</td>`;
                 }).join('');
-                const upBtn = index > 0 ? `<span class="sort-btn" onclick="event.stopPropagation(); moveEmployeeInSchedule(${emp.id}, 'up', ${index})">⬆️</span>` : `<span class="sort-btn disabled">⬆️</span>`;
-                const downBtn = index < data.data.length - 1 ? `<span class="sort-btn" onclick="event.stopPropagation(); moveEmployeeInSchedule(${emp.id}, 'down', ${index})">⬇️</span>` : `<span class="sort-btn disabled">⬇️</span>`;
-                return `<tr><td class="employee-name">${upBtn}${downBtn} ${emp.role === 'manager' ? '👑' : ''} ${emp.name}</td>${cells}</tr>`;
+                
+                // 排序按鈕
+                const canUp = index > 0;
+                const canDown = index < totalCount - 1;
+                const sortBtns = `<div class="sort-btns">
+                    <button class="sort-arrow ${canUp ? '' : 'disabled'}" onclick="moveEmp(${emp.id}, 'up', ${index})" ${canUp ? '' : 'disabled'}>▲</button>
+                    <button class="sort-arrow ${canDown ? '' : 'disabled'}" onclick="moveEmp(${emp.id}, 'down', ${index})" ${canDown ? '' : 'disabled'}>▼</button>
+                </div>`;
+                
+                return `<tr>
+                    <td class="employee-name">
+                        ${sortBtns}
+                        <span class="emp-label">${emp.role === 'manager' ? '👑 ' : ''}${emp.name}</span>
+                    </td>
+                    ${cells}
+                </tr>`;
             }).join('');
         }
 
-        // 在班表頁面移動員工順序
-        async function moveEmployeeInSchedule(id, direction, currentIndex) {
-            const data = await fetch('/api/schedule/schedules/week').then(r => r.json());
-            const employees = data.data.map(r => r.employee);
+        // 移動員工順序
+        async function moveEmp(id, direction, currentIndex) {
+            // 從畫面上的員工列表取得目標 ID
+            const rows = document.querySelectorAll('#tableBody tr');
+            if (!rows || rows.length === 0) return;
             
-            let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-            if (targetIndex < 0 || targetIndex >= employees.length) return;
+            const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= rows.length) return;
             
-            const targetId = employees[targetIndex].id;
+            // 從 window.scheduleEmployees 取得目標員工 ID
+            const emps = window.scheduleEmployees || [];
+            if (emps.length === 0 || !emps[targetIndex]) {
+                console.error('找不到目標員工');
+                return;
+            }
+            
+            const targetId = emps[targetIndex].id;
+            
+            // 顯示載入中
+            document.querySelectorAll('.sort-arrow').forEach(btn => btn.disabled = true);
             
             try {
                 const res = await fetch('/api/schedule/employees/swap', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id1: id, id2: targetId })
+                    body: JSON.stringify({ id1: parseInt(id), id2: parseInt(targetId) })
                 });
                 const result = await res.json();
+                
                 if (result.success) {
-                    loadWeekSchedule();
-                    loadEmployees();
+                    // 重新載入班表（會更新 window.scheduleEmployees）
+                    await loadWeekSchedule();
+                    // 同步更新員工管理頁面
+                    await loadEmployees();
                 } else {
-                    alert('移動失敗：' + (result.error || '未知錯誤'));
+                    alert('移動失敗：' + (result.error || ''));
+                    // 恢復按鈕
+                    document.querySelectorAll('.sort-arrow').forEach(btn => btn.disabled = false);
                 }
             } catch (error) {
                 console.error('移動失敗:', error);
+                alert('移動失敗');
+                document.querySelectorAll('.sort-arrow').forEach(btn => btn.disabled = false);
             }
         }
 
