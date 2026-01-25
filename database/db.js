@@ -329,6 +329,18 @@ async function initDatabase() {
             `, shift);
         }
 
+        // ========== 店長公告表 ==========
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS announcements (
+                id SERIAL PRIMARY KEY,
+                content TEXT NOT NULL,
+                created_by VARCHAR(100),
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         console.log('✅ 資料庫結構初始化完成！');
         
     } catch (error) {

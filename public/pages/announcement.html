@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📢 店長公告 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .announcement-container { max-width: 600px; margin: 0 auto; padding: 15px; }
+        
+        .current-announcement {
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+        .current-announcement h3 { margin: 0 0 10px 0; font-size: 16px; opacity: 0.9; }
+        .current-announcement .content { 
+            font-size: 18px; 
+            line-height: 1.6; 
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+        .current-announcement .meta { 
+            margin-top: 15px; 
+            font-size: 12px; 
+            opacity: 0.8; 
+            display: flex;
+            justify-content: space-between;
+        }
+        .no-announcement {
+            background: #f5f5f5;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            color: #999;
+        }
+        
+        .edit-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .edit-section h3 { margin: 0 0 15px 0; font-size: 16px; color: #333; }
+        
+        .announcement-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+        .announcement-input:focus {
+            border-color: #FF6B35;
+            outline: none;
+        }
+        .announcement-input::placeholder { color: #bbb; }
+        
+        .char-count {
+            text-align: right;
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+        .char-count.warning { color: #f44336; }
+        
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-primary { background: #FF6B35; color: white; }
+        .btn-primary:disabled { background: #ccc; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn-secondary { background: #eee; color: #666; }
+        
+        .quick-templates {
+            margin-top: 15px;
+        }
+        .quick-templates h4 { font-size: 13px; color: #666; margin: 0 0 10px 0; }
+        .template-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .template-chip {
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .template-chip:hover { background: #FFE0D0; color: #FF6B35; }
+        
+        .history-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .history-section h3 { margin: 0 0 15px 0; font-size: 16px; color: #333; }
+        .history-list { max-height: 300px; overflow-y: auto; }
+        .history-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-item .content { color: #333; margin-bottom: 5px; white-space: pre-wrap; }
+        .history-item .meta { color: #999; font-size: 11px; }
+        .history-empty { color: #999; text-align: center; padding: 20px; }
+        
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="announcement-container">
+        <header style="margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 22px;">📢 店長公告</h1>
+            <p style="color: #666; margin: 5px 0 0 0; font-size: 13px;">發布訊息給所有員工看</p>
+        </header>
+
+        <!-- 目前公告 -->
+        <div id="currentAnnouncement">
+            <div class="no-announcement">
+                <p>📭 目前沒有公告</p>
+            </div>
+        </div>
+
+        <!-- 編輯區 -->
+        <div class="edit-section">
+            <h3>✏️ 發布新公告</h3>
+            <textarea 
+                class="announcement-input" 
+                id="announcementInput" 
+                placeholder="輸入公告內容...&#10;&#10;例如：&#10;• 今天店長又沒帶手機回家了 😅&#10;• 冷藏櫃第二層要整理&#10;• 記得補貨鮮奶"
+                maxlength="500"
+            ></textarea>
+            <div class="char-count" id="charCount">0 / 500</div>
+            
+            <div class="quick-templates">
+                <h4>💡 快速範本</h4>
+                <div class="template-chips">
+                    <button class="template-chip" onclick="insertTemplate('📱 店長今天沒帶手機，有急事請打市話！')">沒帶手機</button>
+                    <button class="template-chip" onclick="insertTemplate('🧹 今天重點：冷藏區整理')">冷藏整理</button>
+                    <button class="template-chip" onclick="insertTemplate('📦 到貨提醒：記得點收今天的貨')">到貨提醒</button>
+                    <button class="template-chip" onclick="insertTemplate('⚠️ 注意：效期品要優先處理！')">效期注意</button>
+                    <button class="template-chip" onclick="insertTemplate('🎉 辛苦了！今天大家都很棒～')">鼓勵大家</button>
+                    <button class="template-chip" onclick="insertTemplate('🔧 設備問題：')">設備問題</button>
+                </div>
+            </div>
+            
+            <div class="btn-row">
+                <button class="btn btn-danger" onclick="clearAnnouncement()">🗑️ 清除</button>
+                <button class="btn btn-primary" id="publishBtn" onclick="publishAnnouncement()">📢 發布公告</button>
+            </div>
+        </div>
+
+        <!-- 歷史紀錄 -->
+        <div class="history-section">
+            <h3>📜 歷史公告</h3>
+            <div class="history-list" id="historyList">
+                <div class="history-empty">載入中...</div>
+            </div>
+        </div>
+
+        <!-- 返回 -->
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="/" style="display: inline-block; padding: 10px 25px; background: #666; color: white; text-decoration: none; border-radius: 8px;">🏠 返回首頁</a>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const input = document.getElementById('announcementInput');
+        const charCount = document.getElementById('charCount');
+        const publishBtn = document.getElementById('publishBtn');
+
+        // 字數計算
+        input.addEventListener('input', () => {
+            const len = input.value.length;
+            charCount.textContent = `${len} / 500`;
+            charCount.classList.toggle('warning', len > 450);
+            publishBtn.disabled = len === 0;
+        });
+
+        // 載入目前公告
+        async function loadCurrentAnnouncement() {
+            try {
+                const res = await fetch('/api/announcement');
+                const data = await res.json();
+                
+                const container = document.getElementById('currentAnnouncement');
+                
+                if (data && data.content) {
+                    const date = new Date(data.updated_at);
+                    const timeStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+                    
+                    container.innerHTML = `
+                        <div class="current-announcement">
+                            <h3>📢 目前公告</h3>
+                            <div class="content">${escapeHtml(data.content)}</div>
+                            <div class="meta">
+                                <span>👤 ${data.created_by || '店長'}</span>
+                                <span>🕐 ${timeStr}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="no-announcement">
+                            <p>📭 目前沒有公告</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('載入公告失敗:', error);
+            }
+        }
+
+        // 載入歷史
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/announcement/history');
+                const data = await res.json();
+                
+                const container = document.getElementById('historyList');
+                
+                if (data && data.length > 0) {
+                    container.innerHTML = data.map(item => {
+                        const date = new Date(item.created_at);
+                        const timeStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+                        return `
+                            <div class="history-item">
+                                <div class="content">${escapeHtml(item.content)}</div>
+                                <div class="meta">${item.created_by || '店長'} · ${timeStr}</div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<div class="history-empty">還沒有公告紀錄</div>';
+                }
+            } catch (error) {
+                console.error('載入歷史失敗:', error);
+            }
+        }
+
+        // 發布公告
+        async function publishAnnouncement() {
+            const content = input.value.trim();
+            if (!content) {
+                showToast('請輸入公告內容');
+                return;
+            }
+
+            publishBtn.disabled = true;
+            publishBtn.textContent = '發布中...';
+
+            try {
+                const res = await fetch('/api/announcement', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, created_by: '店長' })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast('✅ 公告已發布！');
+                    input.value = '';
+                    charCount.textContent = '0 / 500';
+                    loadCurrentAnnouncement();
+                    loadHistory();
+                } else {
+                    showToast('發布失敗：' + data.error);
+                }
+            } catch (error) {
+                showToast('發布失敗，請重試');
+            } finally {
+                publishBtn.disabled = false;
+                publishBtn.textContent = '📢 發布公告';
+            }
+        }
+
+        // 清除公告
+        async function clearAnnouncement() {
+            if (!confirm('確定要清除目前的公告嗎？')) return;
+
+            try {
+                const res = await fetch('/api/announcement', { method: 'DELETE' });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast('✅ 公告已清除');
+                    loadCurrentAnnouncement();
+                    loadHistory();
+                }
+            } catch (error) {
+                showToast('清除失敗，請重試');
+            }
+        }
+
+        // 插入範本
+        function insertTemplate(text) {
+            input.value = text;
+            input.focus();
+            input.dispatchEvent(new Event('input'));
+        }
+
+        // Toast 提示
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // HTML 跳脫
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 初始化
+        loadCurrentAnnouncement();
+        loadHistory();
+    </script>
+</body>
+</html>

@@ -76,6 +76,7 @@ const fortuneRoutes = require('./routes/fortune')(db);
 const gamificationRoutes = require('./routes/gamification')(db);
 const reportsRoutes = require('./routes/reports')(db);
 const scheduleRoutes = require('./routes/schedule')(db);
+const announcementRoutes = require('./routes/announcement')(db);
 
 // 使用路由
 app.use('/api', apiRoutes);
@@ -86,6 +87,7 @@ app.use('/api/fortune', fortuneRoutes);
 app.use('/api/game', gamificationRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/announcement', announcementRoutes);
 
 // AI 辨識路由
 const aiRecognition = require('./services/ai-recognition');

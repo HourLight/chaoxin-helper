@@ -84,6 +84,49 @@ module.exports = function(db) {
             } catch (e) { /* 可能在群組中無法取得 */ }
         }
 
+        // ========== 處理員工認領 ==========
+        if (action === 'claim_employee') {
+            const employeeId = data.get('id');
+            const employeeName = decodeURIComponent(data.get('name') || '');
+            
+            try {
+                // 檢查是否已被其他人綁定
+                const checkResult = await db.query(
+                    'SELECT line_user_id FROM employees WHERE id = $1',
+                    [employeeId]
+                );
+                
+                if (checkResult.rows.length > 0 && checkResult.rows[0].line_user_id) {
+                    await client.replyMessage({
+                        replyToken: event.replyToken,
+                        messages: [{ type: 'text', text: `😅 「${employeeName}」已經被其他人認領了喔！\n\n如有問題請聯絡店長～` }]
+                    });
+                    return null;
+                }
+
+                // 綁定 LINE 帳號
+                await db.query(
+                    'UPDATE employees SET line_user_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+                    [userId, employeeId]
+                );
+
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ 
+                        type: 'text', 
+                        text: `🎉 綁定成功！\n\n你好，${employeeName}！\n\n現在你可以：\n• 輸入「班表」查看你的排班\n• 輸入「今天」查看今天上班的夥伴\n\n有問題隨時問我喔～ 💪` 
+                    }]
+                });
+            } catch (error) {
+                console.error('員工認領錯誤:', error);
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ type: 'text', text: '綁定時發生錯誤，請稍後再試～' }]
+                });
+            }
+            return null;
+        }
+
         // 處理「找不到（已售出）」按鈕
         if (action === 'sold' && inventoryId) {
             const itemResult = await db.query('SELECT p.name FROM inventory i JOIN products p ON i.product_id = p.id WHERE i.id = $1', [inventoryId]);
@@ -331,6 +374,315 @@ module.exports = function(db) {
             const hour = new Date().getHours();
             const timeGreeting = hour >= 5 && hour < 12 ? '早安' : hour >= 12 && hour < 18 ? '午安' : '晚安';
             await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: timeGreeting + '～我是潮欣小幫手！🏪\n\n有什麼需要幫忙的嗎？\n輸入「選單」可以看到所有功能喔～' }] });
+            return;
+        }
+
+        // 📢 公告查詢
+        if (text.includes('公告') || text.includes('布告') || text.includes('通知')) {
+            try {
+                const result = await db.query(
+                    'SELECT * FROM announcements WHERE is_active = true ORDER BY updated_at DESC LIMIT 1'
+                );
+                
+                if (result.rows.length === 0) {
+                    await client.replyMessage({ 
+                        replyToken: event.replyToken, 
+                        messages: [{ type: 'text', text: '📭 目前沒有公告喔～' }] 
+                    });
+                    return;
+                }
+
+                const announcement = result.rows[0];
+                const date = new Date(announcement.updated_at);
+                const timeStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{
+                        type: 'flex',
+                        altText: '📢 店長公告',
+                        contents: {
+                            type: 'bubble',
+                            size: 'kilo',
+                            header: {
+                                type: 'box',
+                                layout: 'vertical',
+                                backgroundColor: '#FF6B35',
+                                paddingAll: '15px',
+                                contents: [
+                                    { type: 'text', text: '📢 店長公告', weight: 'bold', size: 'lg', color: '#FFFFFF', align: 'center' }
+                                ]
+                            },
+                            body: {
+                                type: 'box',
+                                layout: 'vertical',
+                                paddingAll: '15px',
+                                contents: [
+                                    { type: 'text', text: announcement.content, wrap: true, size: 'md' },
+                                    { type: 'text', text: `👤 ${announcement.created_by || '店長'} · ${timeStr}`, size: 'xs', color: '#999999', margin: 'lg' }
+                                ]
+                            }
+                        }
+                    }]
+                });
+            } catch (error) {
+                console.error('公告查詢錯誤:', error);
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: '公告查詢暫時有問題，請稍後再試～' }] 
+                });
+            }
+            return;
+        }
+
+        // 📊 今日總覽（店顧問/店長專用）
+        if (text.includes('總覽') || text.includes('店況') || text.includes('今日狀況') || text === '報告') {
+            try {
+                const userId = event.source.userId;
+                let displayName = '訪客';
+                try { const profile = await client.getProfile(userId); displayName = profile.displayName; } catch (e) { }
+
+                // 1. 今天班表
+                const todaySchedule = await db.query(`
+                    SELECT e.name, st.name as shift_name, st.start_time, st.end_time
+                    FROM schedules s
+                    JOIN employees e ON s.employee_id = e.id
+                    LEFT JOIN shift_types st ON s.shift_type = st.code
+                    WHERE s.work_date = CURRENT_DATE
+                    AND e.is_active = true AND s.shift_type != 'off'
+                    ORDER BY st.sort_order
+                `);
+
+                // 2. 效期狀況
+                const expiryStats = await db.query(`
+                    SELECT 
+                        COUNT(*) FILTER (WHERE expiry_date < NOW()) as expired,
+                        COUNT(*) FILTER (WHERE expiry_date >= NOW() AND expiry_date < NOW() + INTERVAL '24 hours') as today,
+                        COUNT(*) FILTER (WHERE expiry_date >= NOW() + INTERVAL '24 hours' AND expiry_date < NOW() + INTERVAL '3 days') as soon,
+                        COUNT(*) as total
+                    FROM inventory WHERE status = 'in_stock'
+                `);
+                const stats = expiryStats.rows[0];
+
+                // 3. 今日操作紀錄
+                const todayOps = await db.query(`
+                    SELECT user_name, action, COUNT(*) as count
+                    FROM operation_logs
+                    WHERE DATE(created_at) = CURRENT_DATE
+                    GROUP BY user_name, action
+                    ORDER BY count DESC
+                `);
+
+                // 4. 今日簽到
+                const checkinCount = await db.query(`
+                    SELECT COUNT(DISTINCT user_id) as count
+                    FROM user_stats
+                    WHERE DATE(last_checkin) = CURRENT_DATE
+                `);
+
+                // 組織訊息
+                let scheduleText = '';
+                if (todaySchedule.rows.length > 0) {
+                    const grouped = {};
+                    todaySchedule.rows.forEach(r => {
+                        if (!grouped[r.shift_name]) grouped[r.shift_name] = [];
+                        grouped[r.shift_name].push(r.name);
+                    });
+                    Object.entries(grouped).forEach(([shift, names]) => {
+                        scheduleText += `${shift}：${names.join('、')}\n`;
+                    });
+                } else {
+                    scheduleText = '尚未排班\n';
+                }
+
+                let opsText = '';
+                if (todayOps.rows.length > 0) {
+                    const actionMap = { 'disposed': '下架', 'sold': '售出', 'register': '登記' };
+                    todayOps.rows.slice(0, 5).forEach(r => {
+                        opsText += `• ${r.user_name}：${actionMap[r.action] || r.action} ${r.count} 件\n`;
+                    });
+                } else {
+                    opsText = '今天還沒有操作紀錄\n';
+                }
+
+                const healthPercent = stats.total > 0 
+                    ? Math.round((stats.total - stats.expired - stats.today) / stats.total * 100) 
+                    : 100;
+
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{
+                        type: 'flex',
+                        altText: '📊 今日總覽',
+                        contents: {
+                            type: 'bubble',
+                            size: 'mega',
+                            header: {
+                                type: 'box',
+                                layout: 'vertical',
+                                backgroundColor: '#1DB446',
+                                paddingAll: '15px',
+                                contents: [
+                                    { type: 'text', text: '📊 今日店況總覽', weight: 'bold', size: 'lg', color: '#FFFFFF', align: 'center' },
+                                    { type: 'text', text: new Date().toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' }), size: 'sm', color: '#FFFFFF', align: 'center', margin: 'sm' }
+                                ]
+                            },
+                            body: {
+                                type: 'box',
+                                layout: 'vertical',
+                                paddingAll: '15px',
+                                spacing: 'lg',
+                                contents: [
+                                    { type: 'text', text: '👥 今日班表', weight: 'bold', size: 'md', color: '#1DB446' },
+                                    { type: 'text', text: scheduleText.trim() || '無資料', size: 'sm', wrap: true },
+                                    { type: 'separator', margin: 'lg' },
+                                    { type: 'text', text: '📦 效期狀況', weight: 'bold', size: 'md', color: '#FF6B35', margin: 'lg' },
+                                    { type: 'box', layout: 'horizontal', margin: 'sm', contents: [
+                                        { type: 'text', text: '庫存健康度', size: 'sm', flex: 3 },
+                                        { type: 'text', text: healthPercent + '%', size: 'sm', weight: 'bold', color: healthPercent >= 80 ? '#1DB446' : healthPercent >= 50 ? '#FF9800' : '#F44336', flex: 2, align: 'end' }
+                                    ]},
+                                    { type: 'box', layout: 'horizontal', margin: 'sm', contents: [
+                                        { type: 'text', text: '🔴 已過期', size: 'xs', color: '#F44336', flex: 2 },
+                                        { type: 'text', text: '🟠 24h內', size: 'xs', color: '#FF9800', flex: 2 },
+                                        { type: 'text', text: '🟢 3天內', size: 'xs', color: '#4CAF50', flex: 2 }
+                                    ]},
+                                    { type: 'box', layout: 'horizontal', contents: [
+                                        { type: 'text', text: (stats.expired || 0) + ' 件', size: 'sm', weight: 'bold', align: 'center', flex: 2 },
+                                        { type: 'text', text: (stats.today || 0) + ' 件', size: 'sm', weight: 'bold', align: 'center', flex: 2 },
+                                        { type: 'text', text: (stats.soon || 0) + ' 件', size: 'sm', weight: 'bold', align: 'center', flex: 2 }
+                                    ]},
+                                    { type: 'separator', margin: 'lg' },
+                                    { type: 'text', text: '✅ 今日工作紀錄', weight: 'bold', size: 'md', color: '#9B59B6', margin: 'lg' },
+                                    { type: 'text', text: opsText.trim() || '無紀錄', size: 'sm', wrap: true },
+                                    { type: 'box', layout: 'horizontal', margin: 'md', contents: [
+                                        { type: 'text', text: '📝 今日簽到', size: 'xs', color: '#888888', flex: 3 },
+                                        { type: 'text', text: (checkinCount.rows[0]?.count || 0) + ' 人', size: 'xs', flex: 2, align: 'end' }
+                                    ]}
+                                ]
+                            },
+                            footer: {
+                                type: 'box',
+                                layout: 'vertical',
+                                paddingAll: '10px',
+                                contents: [
+                                    { type: 'text', text: '💚 大家都很努力喔！', size: 'xs', color: '#888888', align: 'center' }
+                                ]
+                            }
+                        }
+                    }]
+                });
+            } catch (error) {
+                console.error('今日總覽錯誤:', error);
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: '查詢總覽時發生錯誤，請稍後再試～' }] 
+                });
+            }
+            return;
+        }
+
+        // 📦 效期查詢
+        if (text.includes('效期') || text.includes('到期') || text.includes('即期') || text === '過期') {
+            try {
+                // 查詢即將到期商品（24小時內）
+                const expiringResult = await db.query(`
+                    SELECT p.name, i.expiry_date, i.quantity
+                    FROM inventory i
+                    JOIN products p ON i.product_id = p.id
+                    WHERE i.status = 'in_stock'
+                    AND i.expiry_date < NOW() + INTERVAL '24 hours'
+                    ORDER BY i.expiry_date ASC
+                    LIMIT 10
+                `);
+
+                if (expiringResult.rows.length === 0) {
+                    await client.replyMessage({ 
+                        replyToken: event.replyToken, 
+                        messages: [{ type: 'text', text: '✨ 太棒了！目前沒有即將到期的商品喔～\n\n繼續保持這個好狀態！💪' }] 
+                    });
+                    return;
+                }
+
+                let expiryText = '⚠️ 即期商品（24小時內）\n\n';
+                expiringResult.rows.forEach((item, i) => {
+                    const expiry = new Date(item.expiry_date);
+                    const now = new Date();
+                    const diffHours = Math.round((expiry - now) / (1000 * 60 * 60));
+                    
+                    let timeText = '';
+                    if (diffHours < 0) {
+                        timeText = `🔴 已過期 ${Math.abs(diffHours)} 小時`;
+                    } else if (diffHours === 0) {
+                        timeText = '🔴 即將到期！';
+                    } else {
+                        timeText = `🟠 剩 ${diffHours} 小時`;
+                    }
+                    
+                    expiryText += `${i + 1}. ${item.name}\n   ${timeText}（${item.quantity}個）\n`;
+                });
+
+                expiryText += '\n👉 記得優先處理喔！';
+
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: expiryText }] 
+                });
+            } catch (error) {
+                console.error('效期查詢錯誤:', error);
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: '效期查詢時發生錯誤，請稍後再試～' }] 
+                });
+            }
+            return;
+        }
+
+        // 📦 庫存查詢
+        if (text.includes('庫存') || text.includes('有什麼') || text.includes('還有')) {
+            try {
+                const inventoryResult = await db.query(`
+                    SELECT p.name, p.storage_temp, SUM(i.quantity) as total
+                    FROM inventory i
+                    JOIN products p ON i.product_id = p.id
+                    WHERE i.status = 'in_stock'
+                    GROUP BY p.id, p.name, p.storage_temp
+                    ORDER BY total DESC
+                    LIMIT 15
+                `);
+
+                const totalCount = await db.query(`
+                    SELECT COUNT(*) as count, SUM(quantity) as total
+                    FROM inventory WHERE status = 'in_stock'
+                `);
+
+                if (inventoryResult.rows.length === 0) {
+                    await client.replyMessage({ 
+                        replyToken: event.replyToken, 
+                        messages: [{ type: 'text', text: '📦 目前庫存是空的喔～' }] 
+                    });
+                    return;
+                }
+
+                const tempIcon = { 'refrigerated': '❄️', 'frozen': '🧊', 'room_temp': '🌡️' };
+                let inventoryText = `📦 庫存概況\n\n`;
+                inventoryText += `共 ${totalCount.rows[0].count} 筆 / ${totalCount.rows[0].total} 件\n\n`;
+                
+                inventoryResult.rows.forEach(item => {
+                    const icon = tempIcon[item.storage_temp] || '📦';
+                    inventoryText += `${icon} ${item.name}：${item.total} 件\n`;
+                });
+
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: inventoryText }] 
+                });
+            } catch (error) {
+                console.error('庫存查詢錯誤:', error);
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: '庫存查詢時發生錯誤，請稍後再試～' }] 
+                });
+            }
             return;
         }
 
@@ -604,6 +956,98 @@ module.exports = function(db) {
         // 加油回應
         if (text.includes('加油')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '你也加油！我們一起努力 💪✨\n有我在，效期管理交給我！' }] }); return; }
 
+        // ========== 員工認領功能 ==========
+        if (text.includes('認領') || text.includes('綁定') || text === '我是誰') {
+            try {
+                // 檢查是否已經綁定
+                const boundResult = await db.query(
+                    'SELECT * FROM employees WHERE line_user_id = $1 AND is_active = true', 
+                    [userId]
+                );
+                
+                if (boundResult.rows.length > 0) {
+                    const emp = boundResult.rows[0];
+                    await client.replyMessage({ 
+                        replyToken: event.replyToken, 
+                        messages: [{ 
+                            type: 'text', 
+                            text: `✅ 你已經綁定為「${emp.name}」囉！\n\n輸入「班表」查看你的排班～` 
+                        }] 
+                    });
+                    return;
+                }
+
+                // 取得未綁定的員工列表
+                const empListResult = await db.query(
+                    'SELECT id, name FROM employees WHERE (line_user_id IS NULL OR line_user_id = \'\') AND is_active = true ORDER BY name'
+                );
+                
+                if (empListResult.rows.length === 0) {
+                    await client.replyMessage({ 
+                        replyToken: event.replyToken, 
+                        messages: [{ 
+                            type: 'text', 
+                            text: '😅 目前沒有可認領的員工名單喔～\n\n請聯絡店長先建立員工資料！' 
+                        }] 
+                    });
+                    return;
+                }
+
+                // 建立選擇按鈕
+                const buttons = empListResult.rows.slice(0, 10).map(emp => ({
+                    type: 'button',
+                    style: 'primary',
+                    color: '#FF6B35',
+                    height: 'sm',
+                    margin: 'sm',
+                    action: {
+                        type: 'postback',
+                        label: emp.name,
+                        data: `action=claim_employee&id=${emp.id}&name=${encodeURIComponent(emp.name)}`,
+                        displayText: `我是 ${emp.name}`
+                    }
+                }));
+
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{
+                        type: 'flex',
+                        altText: '請選擇你是誰',
+                        contents: {
+                            type: 'bubble',
+                            size: 'kilo',
+                            header: {
+                                type: 'box',
+                                layout: 'vertical',
+                                backgroundColor: '#FF6B35',
+                                paddingAll: '15px',
+                                contents: [
+                                    { type: 'text', text: '👋 請選擇你是誰', weight: 'bold', size: 'lg', color: '#FFFFFF', align: 'center' }
+                                ]
+                            },
+                            body: {
+                                type: 'box',
+                                layout: 'vertical',
+                                paddingAll: '15px',
+                                spacing: 'sm',
+                                contents: [
+                                    { type: 'text', text: '點選你的名字完成綁定：', size: 'sm', color: '#666666', align: 'center', margin: 'md' },
+                                    ...buttons
+                                ]
+                            }
+                        }
+                    }]
+                });
+            } catch (error) {
+                console.error('認領功能錯誤:', error);
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: '認領功能暫時有問題，請稍後再試～' }] 
+                });
+            }
+            return;
+        }
+
         // 班表查詢
         if (text.includes('班表') || text.includes('排班') || text.includes('上班')) {
             try {
@@ -613,7 +1057,7 @@ module.exports = function(db) {
                 if (empResult.rows.length === 0) {
                     await client.replyMessage({ 
                         replyToken: event.replyToken, 
-                        messages: [{ type: 'text', text: '📅 你還沒有綁定員工帳號喔～\n\n請先到網頁版綁定：\n' + baseUrl + '/my-schedule' }] 
+                        messages: [{ type: 'text', text: '📅 你還沒有綁定員工帳號喔～\n\n👉 私訊我輸入「認領」來綁定你的名字！' }] 
                     });
                     return;
                 }
@@ -659,7 +1103,7 @@ module.exports = function(db) {
 
                 await client.replyMessage({ 
                     replyToken: event.replyToken, 
-                    messages: [{ type: 'text', text: scheduleText + '\n👉 詳細班表：\n' + baseUrl + '/my-schedule' }] 
+                    messages: [{ type: 'text', text: scheduleText }] 
                 });
             } catch (error) {
                 console.error('班表查詢錯誤:', error);
@@ -667,6 +1111,50 @@ module.exports = function(db) {
                     replyToken: event.replyToken, 
                     messages: [{ type: 'text', text: '班表查詢暫時有問題，請稍後再試～' }] 
                 });
+            }
+            return;
+        }
+
+        // 今天誰上班
+        if (text.includes('今天') && (text.includes('誰') || text.includes('上班') || text.includes('夥伴'))) {
+            try {
+                const todayResult = await db.query(`
+                    SELECT e.name, s.shift_type, st.name as shift_name, st.start_time, st.end_time
+                    FROM schedules s
+                    JOIN employees e ON s.employee_id = e.id
+                    LEFT JOIN shift_types st ON s.shift_type = st.code
+                    WHERE s.work_date = CURRENT_DATE
+                    AND e.is_active = true
+                    AND s.shift_type != 'off'
+                    ORDER BY st.sort_order, e.name
+                `);
+
+                if (todayResult.rows.length === 0) {
+                    await client.replyMessage({ 
+                        replyToken: event.replyToken, 
+                        messages: [{ type: 'text', text: '📅 今天的班表\n\n還沒有排班資料喔～' }] 
+                    });
+                    return;
+                }
+
+                let todayText = '📅 今天的班表\n\n';
+                const grouped = {};
+                todayResult.rows.forEach(r => {
+                    if (!grouped[r.shift_type]) grouped[r.shift_type] = { name: r.shift_name, time: r.start_time?.substring(0,5) + '-' + r.end_time?.substring(0,5), people: [] };
+                    grouped[r.shift_type].people.push(r.name);
+                });
+
+                Object.values(grouped).forEach(g => {
+                    todayText += `${g.name} ${g.time}\n`;
+                    todayText += `👥 ${g.people.join('、')}\n\n`;
+                });
+
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: todayText.trim() }] 
+                });
+            } catch (error) {
+                console.error('今天班表查詢錯誤:', error);
             }
             return;
         }
@@ -710,22 +1198,31 @@ module.exports = function(db) {
                     { type: 'text', text: '🏪 潮欣小幫手 2.0', weight: 'bold', size: 'xl', color: '#FFFFFF' },
                     { type: 'text', text: '便利商店效期管理 × 遊戲化', size: 'sm', color: '#FFFFFF', margin: 'sm' }
                 ]},
-                body: { type: 'box', layout: 'vertical', paddingAll: '20px', contents: [
+                body: { type: 'box', layout: 'vertical', paddingAll: '20px', spacing: 'md', contents: [
                     { type: 'text', text: '嗨～我是潮欣小幫手！', size: 'md', wrap: true },
                     { type: 'text', text: '有什麼需要幫忙的嗎？', size: 'sm', color: '#666666', margin: 'sm' },
                     { type: 'separator', margin: 'lg' },
-                    { type: 'text', text: '🎮 快速功能', size: 'sm', color: '#999999', margin: 'lg' },
+                    { type: 'text', text: '🎮 每日任務', size: 'sm', color: '#FF6B35', weight: 'bold', margin: 'lg' },
                     { type: 'box', layout: 'horizontal', margin: 'md', spacing: 'sm', contents: [
                         { type: 'button', action: { type: 'message', label: '📝 簽到', text: '簽到' }, style: 'primary', color: '#1DB446', height: 'sm', flex: 1 },
-                        { type: 'button', action: { type: 'message', label: '🎴 抽籤', text: '抽籤' }, style: 'primary', color: '#FF6B35', height: 'sm', flex: 1 },
+                        { type: 'button', action: { type: 'message', label: '🎴 抽籤', text: '抽籤' }, style: 'primary', color: '#9B59B6', height: 'sm', flex: 1 },
                         { type: 'button', action: { type: 'message', label: '💪 成就', text: '我的成就' }, style: 'secondary', height: 'sm', flex: 1 }
+                    ]},
+                    { type: 'text', text: '📋 查詢功能', size: 'sm', color: '#1DB446', weight: 'bold', margin: 'lg' },
+                    { type: 'box', layout: 'horizontal', margin: 'md', spacing: 'sm', contents: [
+                        { type: 'button', action: { type: 'message', label: '📊 總覽', text: '總覽' }, style: 'primary', color: '#FF6B35', height: 'sm', flex: 1 },
+                        { type: 'button', action: { type: 'message', label: '⏰ 效期', text: '效期' }, style: 'secondary', height: 'sm', flex: 1 },
+                        { type: 'button', action: { type: 'message', label: '📦 庫存', text: '庫存' }, style: 'secondary', height: 'sm', flex: 1 }
+                    ]},
+                    { type: 'box', layout: 'horizontal', margin: 'sm', spacing: 'sm', contents: [
+                        { type: 'button', action: { type: 'message', label: '📅 班表', text: '班表' }, style: 'secondary', height: 'sm', flex: 1 },
+                        { type: 'button', action: { type: 'message', label: '📢 公告', text: '公告' }, style: 'secondary', height: 'sm', flex: 1 },
+                        { type: 'button', action: { type: 'message', label: '👋 認領', text: '認領' }, style: 'secondary', height: 'sm', flex: 1 }
                     ]}
                 ]},
                 footer: { type: 'box', layout: 'vertical', paddingAll: '15px', spacing: 'sm', contents: [
-                    { type: 'button', action: { type: 'uri', label: '🏠 前往首頁', uri: baseUrl }, style: 'primary', color: '#F7941D', height: 'sm' },
-                    { type: 'button', action: { type: 'uri', label: '📸 智慧商品登記', uri: baseUrl + '/smart-register' }, style: 'secondary', height: 'sm' },
-                    { type: 'button', action: { type: 'uri', label: '📋 庫存管理', uri: baseUrl + '/inventory' }, style: 'secondary', height: 'sm' },
-                    { type: 'box', layout: 'vertical', margin: 'md', contents: [{ type: 'text', text: '💡 關鍵字：簽到、抽籤、效期、今天、庫存', size: 'xs', color: '#999999', align: 'center', wrap: true }] }
+                    { type: 'button', action: { type: 'uri', label: '🏠 前往網頁', uri: baseUrl }, style: 'primary', color: '#F7941D', height: 'sm' },
+                    { type: 'box', layout: 'vertical', margin: 'md', contents: [{ type: 'text', text: '💡 直接輸入關鍵字就能查詢喔！', size: 'xs', color: '#999999', align: 'center', wrap: true }] }
                 ]}
             }
         };
