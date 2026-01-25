@@ -146,15 +146,22 @@
         <!-- 員工管理 -->
         <div id="tab-employees" class="tab-content">
             <div class="add-form">
-                <h3 style="margin: 0 0 10px 0; font-size: 15px;">➕ 新增員工</h3>
+                <h3 style="margin: 0 0 15px 0; font-size: 16px;">➕ 新增員工</h3>
+                <div class="form-row" style="margin-bottom: 10px;">
+                    <input type="text" id="newEmployeeName" placeholder="👤 姓名（必填）" style="font-size: 15px;">
+                    <input type="text" id="newEmployeePhone" placeholder="📞 電話（選填）" style="font-size: 15px;">
+                </div>
                 <div class="form-row">
-                    <input type="text" id="newEmployeeName" placeholder="姓名">
-                    <input type="text" id="newEmployeePhone" placeholder="電話（選填）">
-                    <select id="newEmployeeRole"><option value="staff">員工</option><option value="manager">店長</option></select>
-                    <button onclick="addEmployee()" style="background: var(--secondary-green); color: white; border: none; border-radius: 6px; padding: 10px 15px;">新增</button>
+                    <select id="newEmployeeRole" style="font-size: 15px;">
+                        <option value="staff">👷 一般員工</option>
+                        <option value="manager">👑 店長</option>
+                    </select>
+                    <button onclick="addEmployee()" style="background: var(--secondary-green); color: white; border: none; border-radius: 8px; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; min-width: 120px;">
+                        ✅ 確認新增
+                    </button>
                 </div>
             </div>
-            <h3 style="font-size: 15px;">👥 員工列表（<span id="employeeCount">0</span> 人）</h3>
+            <h3 style="font-size: 15px; margin-top: 20px;">👥 員工列表（<span id="employeeCount">0</span> 人）</h3>
             <div class="employee-list" id="employeeList"></div>
         </div>
 
@@ -212,18 +219,33 @@
 
         function renderEmployeeList() {
             document.getElementById('employeeCount').textContent = employees.length;
-            document.getElementById('employeeList').innerHTML = employees.map(emp => `
+            document.getElementById('employeeList').innerHTML = employees.map((emp, index) => `
                 <div class="employee-card">
                     <div class="employee-info">
                         <h4>${emp.role === 'manager' ? '👑 ' : ''}${emp.name}</h4>
-                        <p>📞 ${emp.phone || '未填'}</p>
+                        <p>📞 ${emp.phone || '未填'} ${emp.line_user_id ? '✅ 已綁定LINE' : '⏳ 未綁定'}</p>
                     </div>
                     <div class="employee-actions">
+                        <button onclick="moveEmployee(${emp.id}, 'up')" style="background: #9E9E9E; color: white; padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer;" ${index === 0 ? 'disabled style="opacity:0.5"' : ''}>⬆️</button>
+                        <button onclick="moveEmployee(${emp.id}, 'down')" style="background: #9E9E9E; color: white; padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer;" ${index === employees.length - 1 ? 'disabled style="opacity:0.5"' : ''}>⬇️</button>
                         <button class="btn-edit" onclick="editEmployee(${emp.id}, '${emp.name}', '${emp.phone || ''}', '${emp.role}')">✏️</button>
                         <button class="btn-delete" onclick="deleteEmployee(${emp.id}, '${emp.name}')">🗑️</button>
                     </div>
                 </div>
             `).join('');
+        }
+
+        async function moveEmployee(id, direction) {
+            try {
+                const res = await fetch(`/api/schedule/employees/${id}/move-${direction}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    loadEmployees();
+                    loadWeekSchedule();
+                }
+            } catch (error) {
+                console.error('移動失敗:', error);
+            }
         }
 
         async function addEmployee() {

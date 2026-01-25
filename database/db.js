@@ -274,10 +274,16 @@ async function initDatabase() {
                 line_user_id VARCHAR(50),
                 phone VARCHAR(20),
                 role VARCHAR(20) DEFAULT 'staff',
+                sort_order INTEGER DEFAULT 0,
                 is_active BOOLEAN DEFAULT true,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+
+        // 確保 sort_order 欄位存在（舊資料庫升級用）
+        await client.query(`
+            ALTER TABLE employees ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0
         `);
 
         // 班別設定表
