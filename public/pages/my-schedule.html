@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📅 我的班表 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .my-schedule-container { max-width: 500px; margin: 0 auto; padding: 15px; }
+        
+        .user-card {
+            background: linear-gradient(135deg, var(--primary-orange), #FF8C00);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .user-card h2 { margin: 0 0 5px 0; }
+        .user-card p { margin: 0; opacity: 0.9; }
+        
+        .schedule-list { display: flex; flex-direction: column; gap: 10px; }
+        
+        .schedule-item {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .schedule-item.today { border-left: 4px solid var(--primary-orange); }
+        .schedule-item.tomorrow { border-left: 4px solid var(--secondary-green); }
+        
+        .date-badge {
+            min-width: 60px;
+            text-align: center;
+        }
+        .date-badge .day-num { font-size: 24px; font-weight: bold; color: #333; }
+        .date-badge .day-name { font-size: 12px; color: #666; }
+        .date-badge.today .day-num { color: var(--primary-orange); }
+        
+        .shift-info { flex: 1; }
+        .shift-info h4 { margin: 0 0 5px 0; font-size: 16px; }
+        .shift-info p { margin: 0; font-size: 13px; color: #666; }
+        
+        .shift-badge {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .shift-morning { background: #FFF3E0; color: #E65100; }
+        .shift-evening { background: #E3F2FD; color: #1565C0; }
+        .shift-night { background: #EDE7F6; color: #4527A0; }
+        .shift-off { background: #E8F5E9; color: #2E7D32; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+        .empty-state p { font-size: 40px; margin: 0 0 15px 0; }
+        
+        .bind-form {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+        }
+        .bind-form input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        .bind-form button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary-orange);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .who-works {
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .who-works h4 { margin: 0 0 10px 0; font-size: 14px; color: #666; }
+        .who-works-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .coworker { background: white; padding: 5px 12px; border-radius: 20px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="my-schedule-container">
+        <!-- 未綁定狀態 -->
+        <div id="bindView" style="display: none;">
+            <div style="text-align: center; margin: 50px 0 30px 0;">
+                <p style="font-size: 60px; margin: 0;">👤</p>
+                <h2>查詢我的班表</h2>
+                <p style="color: #666;">請先輸入您的姓名進行綁定</p>
+            </div>
+            
+            <div class="bind-form">
+                <p>請輸入您在班表上的姓名：</p>
+                <input type="text" id="employeeName" placeholder="例如：小明">
+                <button onclick="bindEmployee()">🔍 查詢班表</button>
+            </div>
+        </div>
+
+        <!-- 已綁定狀態 -->
+        <div id="scheduleView" style="display: none;">
+            <div class="user-card">
+                <h2 id="userName">載入中...</h2>
+                <p id="userRole">員工</p>
+            </div>
+
+            <h3 style="margin: 20px 0 15px 0;">📅 未來 7 天班表</h3>
+            
+            <div class="schedule-list" id="scheduleList">
+                <!-- 班表會動態填入 -->
+            </div>
+
+            <div class="who-works" id="todayCoworkers" style="display: none;">
+                <h4>🤝 今天一起上班的夥伴</h4>
+                <div class="who-works-list" id="coworkerList"></div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <button onclick="switchEmployee()" style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer;">🔄 切換員工</button>
+            </div>
+        </div>
+
+        <!-- 返回首頁 -->
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="/" style="display: inline-block; padding: 12px 30px; background: var(--secondary-green); color: white; text-decoration: none; border-radius: 8px;">🏠 返回首頁</a>
+        </div>
+    </div>
+
+    <script>
+        const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+        let currentEmployee = null;
+
+        // 檢查本地儲存的員工資訊
+        function checkStoredEmployee() {
+            const stored = localStorage.getItem('myEmployeeId');
+            if (stored) {
+                loadMySchedule(stored);
+            } else {
+                document.getElementById('bindView').style.display = 'block';
+                document.getElementById('scheduleView').style.display = 'none';
+            }
+        }
+
+        // 綁定員工
+        async function bindEmployee() {
+            const name = document.getElementById('employeeName').value.trim();
+            if (!name) {
+                alert('請輸入姓名');
+                return;
+            }
+
+            try {
+                // 先查詢員工列表
+                const res = await fetch('/api/schedule/employees');
+                const employees = await res.json();
+                
+                // 找到符合的員工
+                const employee = employees.find(e => e.name === name);
+                
+                if (!employee) {
+                    alert('找不到此員工，請確認姓名是否正確');
+                    return;
+                }
+
+                // 儲存到本地
+                localStorage.setItem('myEmployeeId', employee.id);
+                localStorage.setItem('myEmployeeName', employee.name);
+                
+                loadMySchedule(employee.id);
+            } catch (error) {
+                alert('查詢失敗：' + error.message);
+            }
+        }
+
+        // 載入我的班表
+        async function loadMySchedule(employeeId) {
+            try {
+                // 取得員工資訊
+                const empRes = await fetch('/api/schedule/employees');
+                const employees = await empRes.json();
+                currentEmployee = employees.find(e => e.id == employeeId);
+
+                if (!currentEmployee) {
+                    localStorage.removeItem('myEmployeeId');
+                    checkStoredEmployee();
+                    return;
+                }
+
+                // 顯示員工資訊
+                document.getElementById('userName').textContent = currentEmployee.name;
+                document.getElementById('userRole').textContent = 
+                    currentEmployee.role === 'manager' ? '👑 店長' : '💼 員工';
+
+                // 取得未來 7 天班表
+                const today = new Date();
+                const startDate = today.toISOString().split('T')[0];
+                const endDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+                const scheduleRes = await fetch(`/api/schedule/schedules?employee_id=${employeeId}&start_date=${startDate}&end_date=${endDate}`);
+                const schedules = await scheduleRes.json();
+
+                renderSchedules(schedules);
+                loadTodayCoworkers();
+
+                document.getElementById('bindView').style.display = 'none';
+                document.getElementById('scheduleView').style.display = 'block';
+            } catch (error) {
+                console.error('載入班表失敗:', error);
+                alert('載入失敗，請重試');
+            }
+        }
+
+        // 渲染班表
+        function renderSchedules(schedules) {
+            const list = document.getElementById('scheduleList');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // 建立 7 天的日期陣列
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+                days.push(d.toISOString().split('T')[0]);
+            }
+
+            // 建立班表映射
+            const scheduleMap = {};
+            schedules.forEach(s => {
+                const dateStr = new Date(s.work_date).toISOString().split('T')[0];
+                scheduleMap[dateStr] = s;
+            });
+
+            list.innerHTML = days.map((dateStr, idx) => {
+                const date = new Date(dateStr);
+                const schedule = scheduleMap[dateStr];
+                const isToday = idx === 0;
+                const isTomorrow = idx === 1;
+
+                let shiftName = '未排班';
+                let shiftClass = '';
+                let timeText = '';
+
+                if (schedule) {
+                    if (schedule.shift_type === 'off') {
+                        shiftName = '🏖️ 休假';
+                        shiftClass = 'shift-off';
+                    } else if (schedule.shift_name) {
+                        shiftName = schedule.shift_name;
+                        shiftClass = `shift-${schedule.shift_type}`;
+                        timeText = `${schedule.start_time?.substring(0,5)} - ${schedule.end_time?.substring(0,5)}`;
+                    }
+                }
+
+                return `
+                    <div class="schedule-item ${isToday ? 'today' : ''} ${isTomorrow ? 'tomorrow' : ''}">
+                        <div class="date-badge ${isToday ? 'today' : ''}">
+                            <div class="day-num">${date.getDate()}</div>
+                            <div class="day-name">${isToday ? '今天' : isTomorrow ? '明天' : '週' + weekDays[date.getDay()]}</div>
+                        </div>
+                        <div class="shift-info">
+                            <h4>${shiftName}</h4>
+                            <p>${timeText || (schedule?.shift_type === 'off' ? '好好休息～' : '等待排班')}</p>
+                        </div>
+                        ${schedule && schedule.shift_type !== 'off' ? `<span class="shift-badge ${shiftClass}">${schedule.shift_type === 'morning' ? '早' : schedule.shift_type === 'evening' ? '晚' : '夜'}</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 載入今天一起上班的人
+        async function loadTodayCoworkers() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const res = await fetch(`/api/schedule/who-works?date=${today}`);
+                const data = await res.json();
+
+                // 找出同班別的同事
+                const mySchedule = await fetch(`/api/schedule/schedules?employee_id=${currentEmployee.id}&start_date=${today}&end_date=${today}`);
+                const myData = await mySchedule.json();
+                
+                if (myData.length === 0 || myData[0].shift_type === 'off') {
+                    document.getElementById('todayCoworkers').style.display = 'none';
+                    return;
+                }
+
+                const myShift = myData[0].shift_type;
+                const coworkers = data.shifts[myShift]?.filter(c => c.employee_id !== currentEmployee.id) || [];
+
+                if (coworkers.length > 0) {
+                    document.getElementById('coworkerList').innerHTML = coworkers.map(c => 
+                        `<span class="coworker">${c.employee_name}</span>`
+                    ).join('');
+                    document.getElementById('todayCoworkers').style.display = 'block';
+                } else {
+                    document.getElementById('todayCoworkers').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('載入同事資訊失敗:', error);
+            }
+        }
+
+        // 切換員工
+        function switchEmployee() {
+            localStorage.removeItem('myEmployeeId');
+            localStorage.removeItem('myEmployeeName');
+            document.getElementById('employeeName').value = '';
+            checkStoredEmployee();
+        }
+
+        // 初始化
+        checkStoredEmployee();
+    </script>
+</body>
+</html>

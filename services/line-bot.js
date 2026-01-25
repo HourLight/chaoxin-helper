@@ -484,7 +484,7 @@ module.exports = function(db) {
 
         // 效期查詢
         if (text.includes('效期') || text.includes('到期') || text.includes('過期')) {
-            const expiringResult = await db.query("SELECT COUNT(*) as count FROM inventory WHERE status = 'in_stock' AND expiry_date <= NOW() + INTERVAL '24 hours'");
+            const expiringResult = await db.query("SELECT COUNT(*) as count FROM inventory WHERE status = 'in_stock' AND expiry_date <= NOW() + INTERVAL '24 hours' AND expiry_date > NOW()");
             const totalResult = await db.query("SELECT COUNT(*) as count FROM inventory WHERE status = 'in_stock'");
             const expiredResult = await db.query("SELECT COUNT(*) as count FROM inventory WHERE status = 'in_stock' AND expiry_date <= NOW()");
             await client.replyMessage({ replyToken: event.replyToken, messages: [createExpiryReportFlex(parseInt(totalResult.rows[0].count), parseInt(expiringResult.rows[0].count), parseInt(expiredResult.rows[0].count), baseUrl)] });
@@ -603,6 +603,73 @@ module.exports = function(db) {
 
         // 加油回應
         if (text.includes('加油')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '你也加油！我們一起努力 💪✨\n有我在，效期管理交給我！' }] }); return; }
+
+        // 班表查詢
+        if (text.includes('班表') || text.includes('排班') || text.includes('上班')) {
+            try {
+                // 查找員工
+                const empResult = await db.query('SELECT * FROM employees WHERE line_user_id = $1 AND is_active = true', [userId]);
+                
+                if (empResult.rows.length === 0) {
+                    await client.replyMessage({ 
+                        replyToken: event.replyToken, 
+                        messages: [{ type: 'text', text: '📅 你還沒有綁定員工帳號喔～\n\n請先到網頁版綁定：\n' + baseUrl + '/my-schedule' }] 
+                    });
+                    return;
+                }
+
+                const employee = empResult.rows[0];
+                
+                // 取得未來 7 天班表
+                const scheduleResult = await db.query(`
+                    SELECT s.*, st.name as shift_name, st.start_time, st.end_time
+                    FROM schedules s
+                    LEFT JOIN shift_types st ON s.shift_type = st.code
+                    WHERE s.employee_id = $1 
+                    AND s.work_date >= CURRENT_DATE
+                    AND s.work_date < CURRENT_DATE + INTERVAL '7 days'
+                    ORDER BY s.work_date
+                `, [employee.id]);
+
+                const schedules = scheduleResult.rows;
+                const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+
+                if (schedules.length === 0) {
+                    await client.replyMessage({ 
+                        replyToken: event.replyToken, 
+                        messages: [{ type: 'text', text: '📅 ' + employee.name + ' 的班表\n\n未來 7 天還沒有排班資料喔～\n請聯絡店長確認！' }] 
+                    });
+                    return;
+                }
+
+                // 組織班表訊息
+                let scheduleText = '📅 ' + employee.name + ' 的班表\n\n';
+                schedules.forEach(s => {
+                    const date = new Date(s.work_date);
+                    const dayName = weekDays[date.getDay()];
+                    const dateStr = (date.getMonth() + 1) + '/' + date.getDate();
+                    
+                    if (s.shift_type === 'off') {
+                        scheduleText += `${dateStr}(${dayName}) 🏖️ 休假\n`;
+                    } else {
+                        const timeStr = s.start_time?.substring(0,5) + '-' + s.end_time?.substring(0,5);
+                        scheduleText += `${dateStr}(${dayName}) ${s.shift_name} ${timeStr}\n`;
+                    }
+                });
+
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: scheduleText + '\n👉 詳細班表：\n' + baseUrl + '/my-schedule' }] 
+                });
+            } catch (error) {
+                console.error('班表查詢錯誤:', error);
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [{ type: 'text', text: '班表查詢暫時有問題，請稍後再試～' }] 
+                });
+            }
+            return;
+        }
 
         // 隱藏彩蛋
         if (text.includes('我愛你') || text.includes('愛你')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '啊...突然告白好害羞 😳\n我...我也很喜歡幫你管理效期啦！💕' }] }); return; }

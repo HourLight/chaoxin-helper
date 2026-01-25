@@ -75,6 +75,7 @@ const lineRoutes = require('./routes/line')(db);
 const fortuneRoutes = require('./routes/fortune')(db);
 const gamificationRoutes = require('./routes/gamification')(db);
 const reportsRoutes = require('./routes/reports')(db);
+const scheduleRoutes = require('./routes/schedule')(db);
 
 // 使用路由
 app.use('/api', apiRoutes);
@@ -84,6 +85,7 @@ app.use('/api/line', lineRoutes);
 app.use('/api/fortune', fortuneRoutes);
 app.use('/api/game', gamificationRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/schedule', scheduleRoutes);
 
 // AI 辨識路由
 const aiRecognition = require('./services/ai-recognition');
@@ -123,6 +125,8 @@ app.get('/fortune', (req, res) => res.sendFile(path.join(__dirname, 'public', 'p
 app.get('/achievements', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'achievements.html')));
 app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html')));
 app.get('/reports', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'reports.html')));
+app.get('/schedule', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'schedule.html')));
+app.get('/my-schedule', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'my-schedule.html')));
 
 // 定時任務 - 每天早上 10 點發送效期提醒
 cron.schedule('0 10 * * *', async () => {

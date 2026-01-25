@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📅 班表管理 - 潮欣小幫手</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .schedule-container { max-width: 100%; margin: 0 auto; padding: 10px; }
+        
+        /* 頁籤 */
+        .tabs { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .tab-btn { padding: 10px 20px; border: none; background: #f0f0f0; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .tab-btn.active { background: var(--primary-orange); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* 週選擇器 */
+        .week-selector { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .week-nav { display: flex; gap: 5px; }
+        .week-nav button { padding: 8px 12px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .week-nav button:hover { background: #f5f5f5; }
+        .week-display { font-size: 15px; font-weight: bold; color: var(--primary-orange); }
+        
+        /* 班表表格 */
+        .schedule-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .schedule-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px; }
+        .schedule-table th, .schedule-table td { border: 1px solid #ddd; text-align: center; vertical-align: middle; }
+        .schedule-table th { background: var(--secondary-green); color: white; padding: 10px 5px; font-size: 11px; }
+        .schedule-table th.employee-header { width: 70px; min-width: 70px; }
+        .schedule-table th.day-header { width: calc((100% - 70px) / 7); }
+        
+        .schedule-table td.employee-name { 
+            background: #f9f9f9; font-weight: bold; padding: 8px 5px; font-size: 13px;
+            position: sticky; left: 0; z-index: 1;
+        }
+        
+        /* 班別格子 */
+        .shift-cell { padding: 5px; cursor: pointer; min-height: 50px; transition: all 0.2s; position: relative; }
+        .shift-cell:hover { background: #fff9f5; }
+        .shift-cell.has-note::after { content: '📝'; position: absolute; top: 2px; right: 2px; font-size: 10px; }
+        
+        /* 班別按鈕 */
+        .shift-btn { display: block; width: 100%; padding: 8px 4px; border: none; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .shift-btn.morning { background: #FFF3E0; color: #E65100; border: 2px solid #FFB74D; }
+        .shift-btn.evening { background: #E3F2FD; color: #1565C0; border: 2px solid #64B5F6; }
+        .shift-btn.night { background: #EDE7F6; color: #4527A0; border: 2px solid #9575CD; }
+        .shift-btn.off { background: #E8F5E9; color: #2E7D32; border: 2px solid #81C784; }
+        .shift-btn.empty { background: #fafafa; color: #999; border: 2px dashed #ddd; }
+        
+        /* 班別選擇彈窗 */
+        .shift-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .shift-modal.show { display: flex; }
+        .shift-modal-content { background: white; border-radius: 15px; padding: 20px; width: 90%; max-width: 320px; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .shift-modal h3 { margin: 0 0 15px 0; text-align: center; }
+        .shift-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .shift-option { padding: 15px 10px; border: 2px solid #eee; border-radius: 10px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .shift-option:hover { border-color: var(--primary-orange); }
+        .shift-option.selected { border-color: var(--primary-orange); background: #fff9f5; }
+        .shift-option .icon { font-size: 24px; display: block; margin-bottom: 5px; }
+        .shift-option .name { font-weight: bold; font-size: 14px; }
+        .shift-option .time { font-size: 11px; color: #666; }
+        
+        .note-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; font-size: 14px; }
+        .modal-buttons { display: flex; gap: 10px; }
+        .modal-buttons button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+        .btn-cancel { background: #f0f0f0; color: #666; }
+        .btn-save { background: var(--primary-orange); color: white; }
+        .btn-clear { background: #f44336; color: white; }
+        
+        /* 儲存列 */
+        .save-bar { position: sticky; bottom: 0; background: white; padding: 12px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .save-btn { padding: 12px 30px; background: var(--primary-orange); color: white; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
+        .save-btn:disabled { background: #ccc; }
+        .change-count { color: #666; font-size: 13px; }
+        
+        /* 員工管理 */
+        .employee-list { display: grid; gap: 10px; }
+        .employee-card { background: white; border: 1px solid #eee; border-radius: 10px; padding: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .employee-info h4 { margin: 0 0 5px 0; }
+        .employee-info p { margin: 0; font-size: 13px; color: #666; }
+        .employee-actions { display: flex; gap: 8px; }
+        .employee-actions button { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .btn-edit { background: #2196F3; color: white; }
+        .btn-delete { background: #f44336; color: white; }
+        
+        .add-form { background: #f9f9f9; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .form-row input, .form-row select { flex: 1; min-width: 120px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        
+        .legend { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; font-size: 12px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .legend-color { width: 20px; height: 20px; border-radius: 4px; }
+        
+        @media (max-width: 768px) {
+            .schedule-table { font-size: 11px; }
+            .shift-btn { padding: 6px 2px; font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="schedule-container">
+        <header style="margin-bottom: 15px;">
+            <h1 style="margin: 0; font-size: 22px;">📅 班表管理</h1>
+            <p style="color: #666; margin: 5px 0 0 0; font-size: 13px;">點選格子即可排班，可加備註</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('schedule')">📅 排班表</button>
+            <button class="tab-btn" onclick="switchTab('employees')">👥 員工管理</button>
+        </div>
+
+        <!-- 排班表 -->
+        <div id="tab-schedule" class="tab-content active">
+            <div class="week-selector">
+                <div class="week-nav">
+                    <button onclick="changeWeek(-1)">◀</button>
+                    <button onclick="changeWeek(0)">本週</button>
+                    <button onclick="changeWeek(1)">▶</button>
+                </div>
+                <div class="week-display" id="weekDisplay">載入中...</div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: #FFF3E0; border: 1px solid #FFB74D;"></div> 早班</div>
+                <div class="legend-item"><div class="legend-color" style="background: #E3F2FD; border: 1px solid #64B5F6;"></div> 晚班</div>
+                <div class="legend-item"><div class="legend-color" style="background: #EDE7F6; border: 1px solid #9575CD;"></div> 大夜</div>
+                <div class="legend-item"><div class="legend-color" style="background: #E8F5E9; border: 1px solid #81C784;"></div> 休假</div>
+                <div class="legend-item">📝 有備註</div>
+            </div>
+
+            <div class="schedule-wrapper">
+                <table class="schedule-table" id="scheduleTable">
+                    <thead><tr id="tableHeader"><th class="employee-header">員工</th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="save-bar">
+                <span class="change-count" id="changeCount">尚無變更</span>
+                <button class="save-btn" id="saveBtn" onclick="saveSchedules()" disabled>💾 儲存班表</button>
+            </div>
+        </div>
+
+        <!-- 員工管理 -->
+        <div id="tab-employees" class="tab-content">
+            <div class="add-form">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px;">➕ 新增員工</h3>
+                <div class="form-row">
+                    <input type="text" id="newEmployeeName" placeholder="姓名">
+                    <input type="text" id="newEmployeePhone" placeholder="電話（選填）">
+                    <select id="newEmployeeRole"><option value="staff">員工</option><option value="manager">店長</option></select>
+                    <button onclick="addEmployee()" style="background: var(--secondary-green); color: white; border: none; border-radius: 6px; padding: 10px 15px;">新增</button>
+                </div>
+            </div>
+            <h3 style="font-size: 15px;">👥 員工列表（<span id="employeeCount">0</span> 人）</h3>
+            <div class="employee-list" id="employeeList"></div>
+        </div>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="/" style="display: inline-block; padding: 10px 25px; background: #666; color: white; text-decoration: none; border-radius: 8px;">🏠 返回首頁</a>
+        </div>
+    </div>
+
+    <!-- 班別選擇彈窗 -->
+    <div class="shift-modal" id="shiftModal">
+        <div class="shift-modal-content">
+            <h3 id="modalTitle">選擇班別</h3>
+            <div class="shift-options">
+                <div class="shift-option" data-shift="morning" onclick="selectShiftOption('morning')">
+                    <span class="icon">☀️</span><span class="name">早班</span><span class="time">07:00-15:00</span>
+                </div>
+                <div class="shift-option" data-shift="evening" onclick="selectShiftOption('evening')">
+                    <span class="icon">🌅</span><span class="name">晚班</span><span class="time">15:00-23:00</span>
+                </div>
+                <div class="shift-option" data-shift="night" onclick="selectShiftOption('night')">
+                    <span class="icon">🌙</span><span class="name">大夜班</span><span class="time">23:00-07:00</span>
+                </div>
+                <div class="shift-option" data-shift="off" onclick="selectShiftOption('off')">
+                    <span class="icon">🏖️</span><span class="name">休假</span><span class="time">好好休息</span>
+                </div>
+            </div>
+            <input type="text" class="note-input" id="noteInput" placeholder="📝 備註（代班、請假原因...）" maxlength="50">
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn-clear" onclick="clearShift()">清除</button>
+                <button class="btn-save" onclick="confirmShift()">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentWeekOffset = 0, employees = [], weekDays = [], scheduleData = {}, pendingChanges = {};
+        let currentCell = { employeeId: null, date: null }, selectedShift = null;
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            if (tabName === 'employees') loadEmployees();
+        }
+
+        async function loadEmployees() {
+            try {
+                const res = await fetch('/api/schedule/employees');
+                employees = await res.json();
+                renderEmployeeList();
+            } catch (error) { console.error('載入員工失敗:', error); }
+        }
+
+        function renderEmployeeList() {
+            document.getElementById('employeeCount').textContent = employees.length;
+            document.getElementById('employeeList').innerHTML = employees.map(emp => `
+                <div class="employee-card">
+                    <div class="employee-info">
+                        <h4>${emp.role === 'manager' ? '👑 ' : ''}${emp.name}</h4>
+                        <p>📞 ${emp.phone || '未填'}</p>
+                    </div>
+                    <div class="employee-actions">
+                        <button class="btn-edit" onclick="editEmployee(${emp.id}, '${emp.name}', '${emp.phone || ''}', '${emp.role}')">✏️</button>
+                        <button class="btn-delete" onclick="deleteEmployee(${emp.id}, '${emp.name}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addEmployee() {
+            const name = document.getElementById('newEmployeeName').value.trim();
+            const phone = document.getElementById('newEmployeePhone').value.trim();
+            const role = document.getElementById('newEmployeeRole').value;
+            if (!name) { alert('請輸入姓名'); return; }
+            const res = await fetch('/api/schedule/employees', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, phone, role })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('✅ 新增成功！');
+                document.getElementById('newEmployeeName').value = '';
+                document.getElementById('newEmployeePhone').value = '';
+                loadEmployees(); loadWeekSchedule();
+            }
+        }
+
+        function editEmployee(id, name, phone, role) {
+            const newName = prompt('姓名：', name);
+            if (newName === null) return;
+            const newPhone = prompt('電話：', phone);
+            const newRole = confirm('是否為店長？') ? 'manager' : 'staff';
+            fetch(`/api/schedule/employees/${id}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName, phone: newPhone, role: newRole })
+            }).then(() => { loadEmployees(); loadWeekSchedule(); });
+        }
+
+        async function deleteEmployee(id, name) {
+            if (!confirm(`確定刪除「${name}」？`)) return;
+            await fetch(`/api/schedule/employees/${id}`, { method: 'DELETE' });
+            loadEmployees(); loadWeekSchedule();
+        }
+
+        async function loadWeekSchedule() {
+            try {
+                const targetDate = new Date();
+                targetDate.setDate(targetDate.getDate() + (currentWeekOffset * 7));
+                const res = await fetch(`/api/schedule/schedules/week?date=${targetDate.toISOString().split('T')[0]}`);
+                const data = await res.json();
+                
+                weekDays = data.days;
+                scheduleData = {};
+                data.data.forEach(row => {
+                    row.schedules.forEach(s => {
+                        const dateKey = typeof s.work_date === 'string' ? s.work_date : 
+                            (s.work_date ? new Date(s.work_date).toISOString().split('T')[0] : null);
+                        if (dateKey) scheduleData[`${row.employee.id}-${dateKey}`] = { shift_type: s.shift_type, notes: s.notes };
+                    });
+                });
+                renderWeekSchedule(data);
+                pendingChanges = {};
+                updateSaveButton();
+            } catch (error) { console.error('載入班表失敗:', error); }
+        }
+
+        function renderWeekSchedule(data) {
+            const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('weekDisplay').textContent = `${data.week_start} ~ ${data.week_end}`;
+
+            document.getElementById('tableHeader').innerHTML = '<th class="employee-header">員工</th>' + 
+                data.days.map(d => {
+                    const date = new Date(d), isToday = d === today;
+                    return `<th class="day-header" style="${isToday ? 'background: var(--primary-orange);' : ''}">${date.getDate()}(${dayNames[date.getDay()]})</th>`;
+                }).join('');
+
+            document.getElementById('tableBody').innerHTML = data.data.map(row => {
+                const emp = row.employee;
+                const cells = data.days.map(d => {
+                    const key = `${emp.id}-${d}`, schedule = scheduleData[key] || {};
+                    return `<td class="shift-cell ${schedule.notes ? 'has-note' : ''}" onclick="openShiftModal(${emp.id}, '${d}', '${emp.name}')" data-emp="${emp.id}" data-date="${d}">${renderShiftButton(schedule.shift_type || '', schedule.notes || '')}</td>`;
+                }).join('');
+                return `<tr><td class="employee-name">${emp.role === 'manager' ? '👑' : ''} ${emp.name}</td>${cells}</tr>`;
+            }).join('');
+        }
+
+        function renderShiftButton(shift, note) {
+            if (!shift) return `<button class="shift-btn empty">點選</button>`;
+            const labels = { morning: '☀️早', evening: '🌅晚', night: '🌙夜', off: '🏖️休' };
+            return `<button class="shift-btn ${shift}">${labels[shift] || shift}</button>`;
+        }
+
+        function openShiftModal(empId, date, empName) {
+            currentCell = { employeeId: empId, date: date };
+            const key = `${empId}-${date}`, existing = pendingChanges[key] || scheduleData[key] || {};
+            selectedShift = existing.shift_type || null;
+            document.getElementById('noteInput').value = existing.notes || '';
+            const dateObj = new Date(date), dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+            document.getElementById('modalTitle').textContent = `${empName} - ${dateObj.getMonth()+1}/${dateObj.getDate()}(${dayNames[dateObj.getDay()]})`;
+            document.querySelectorAll('.shift-option').forEach(opt => opt.classList.toggle('selected', opt.dataset.shift === selectedShift));
+            document.getElementById('shiftModal').classList.add('show');
+        }
+
+        function selectShiftOption(shift) {
+            selectedShift = shift;
+            document.querySelectorAll('.shift-option').forEach(opt => opt.classList.toggle('selected', opt.dataset.shift === shift));
+        }
+
+        function confirmShift() {
+            if (!selectedShift) { alert('請選擇班別'); return; }
+            const note = document.getElementById('noteInput').value.trim();
+            const key = `${currentCell.employeeId}-${currentCell.date}`;
+            pendingChanges[key] = { employee_id: currentCell.employeeId, work_date: currentCell.date, shift_type: selectedShift, notes: note };
+            const cell = document.querySelector(`td[data-emp="${currentCell.employeeId}"][data-date="${currentCell.date}"]`);
+            if (cell) { cell.innerHTML = renderShiftButton(selectedShift, note); cell.classList.toggle('has-note', !!note); }
+            updateSaveButton(); closeModal();
+        }
+
+        function clearShift() {
+            const key = `${currentCell.employeeId}-${currentCell.date}`;
+            pendingChanges[key] = { employee_id: currentCell.employeeId, work_date: currentCell.date, shift_type: '', notes: '' };
+            const cell = document.querySelector(`td[data-emp="${currentCell.employeeId}"][data-date="${currentCell.date}"]`);
+            if (cell) { cell.innerHTML = renderShiftButton('', ''); cell.classList.remove('has-note'); }
+            updateSaveButton(); closeModal();
+        }
+
+        function closeModal() { document.getElementById('shiftModal').classList.remove('show'); selectedShift = null; }
+
+        function updateSaveButton() {
+            const count = Object.keys(pendingChanges).length;
+            document.getElementById('saveBtn').disabled = count === 0;
+            document.getElementById('changeCount').textContent = count > 0 ? `有 ${count} 筆變更` : '尚無變更';
+        }
+
+        async function saveSchedules() {
+            const schedules = Object.values(pendingChanges).filter(s => s.shift_type);
+            if (schedules.length === 0) { alert('沒有需要儲存的變更'); return; }
+            document.getElementById('saveBtn').textContent = '儲存中...';
+            document.getElementById('saveBtn').disabled = true;
+            await fetch('/api/schedule/schedules/batch', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ schedules, created_by: 'web_manager' })
+            });
+            alert('✅ 班表已儲存！');
+            pendingChanges = {};
+            loadWeekSchedule();
+            document.getElementById('saveBtn').textContent = '💾 儲存班表';
+        }
+
+        function changeWeek(offset) {
+            if (Object.keys(pendingChanges).length > 0 && !confirm('有未儲存的變更，確定切換？')) return;
+            currentWeekOffset = offset === 0 ? 0 : currentWeekOffset + offset;
+            loadWeekSchedule();
+        }
+
+        document.getElementById('shiftModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+        async function init() { await loadEmployees(); await loadWeekSchedule(); }
+        init();
+    </script>
+</body>
+</html>

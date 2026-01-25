@@ -264,6 +264,71 @@ async function initDatabase() {
             `, badge);
         }
 
+        // ========== 班表系統資料表 ==========
+        
+        // 員工資料表
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS employees (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                line_user_id VARCHAR(50),
+                phone VARCHAR(20),
+                role VARCHAR(20) DEFAULT 'staff',
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 班別設定表
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS shift_types (
+                id SERIAL PRIMARY KEY,
+                code VARCHAR(20) UNIQUE NOT NULL,
+                name VARCHAR(50) NOT NULL,
+                start_time TIME NOT NULL,
+                end_time TIME NOT NULL,
+                color VARCHAR(20) DEFAULT '#FF6B35',
+                sort_order INTEGER DEFAULT 0
+            )
+        `);
+
+        // 班表資料表
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS schedules (
+                id SERIAL PRIMARY KEY,
+                employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+                work_date DATE NOT NULL,
+                shift_type VARCHAR(20) NOT NULL,
+                notes TEXT,
+                created_by VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(employee_id, work_date)
+            )
+        `);
+
+        // 建立班表索引
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_schedules_date ON schedules(work_date)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_schedules_employee ON schedules(employee_id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_employees_line_id ON employees(line_user_id)`);
+
+        // 插入預設班別
+        const shiftTypes = [
+            ['morning', '☀️ 早班', '07:00', '15:00', '#FF9800', 1],
+            ['evening', '🌅 晚班', '15:00', '23:00', '#2196F3', 2],
+            ['night', '🌙 大夜班', '23:00', '07:00', '#673AB7', 3],
+            ['off', '🏖️ 休假', '00:00', '00:00', '#4CAF50', 4]
+        ];
+
+        for (const shift of shiftTypes) {
+            await client.query(`
+                INSERT INTO shift_types (code, name, start_time, end_time, color, sort_order)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (code) DO NOTHING
+            `, shift);
+        }
+
         console.log('✅ 資料庫結構初始化完成！');
         
     } catch (error) {
