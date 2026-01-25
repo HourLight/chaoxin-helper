@@ -187,50 +187,20 @@
 
         async function handleBarcodeComplete(barcode) {
             currentBarcode = barcode;
-            barcodeDisplay.innerHTML = `${barcode} <span style="font-size: 0.75rem; color: var(--text-secondary);">🔍 查詢中...</span>`;
+            barcodeDisplay.textContent = barcode;
 
             try {
-                // 🆕 使用智慧查詢（會查詢外部資料庫）
-                const product = await smartLookupBarcode(barcode);
+                const product = await lookupBarcode(barcode);
                 
                 if (product) {
-                    // 找到商品！
                     currentProduct = product;
-                    
-                    // 顯示來源提示
-                    const sourceName = getSourceName(product.source);
-                    if (product.source !== 'local') {
-                        showToast(`✨ 從 ${sourceName} 找到商品資料！`, 'success');
-                    }
-                    
-                    // 如果是外部資料庫找到的，先建立本地商品記錄
-                    if (product.source !== 'local' && !product.product_id) {
-                        const result = await api('/products', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                barcode: barcode,
-                                name: product.name,
-                                category: product.category || null,
-                                storage_temp: product.storage_temp || 'refrigerated'
-                            })
-                        });
-                        currentProduct.id = result.id;
-                        currentProduct.product_id = result.id;
-                    } else {
-                        currentProduct.id = product.product_id;
-                    }
-                    
-                    barcodeDisplay.textContent = barcode;
-                    showProductForm(currentProduct);
+                    showProductForm(product);
                 } else {
-                    // 找不到，讓用戶手動輸入
-                    barcodeDisplay.textContent = barcode;
                     document.getElementById('newBarcode').value = barcode;
                     showStep(2);
                 }
             } catch (error) {
-                barcodeDisplay.textContent = barcode;
-                showToast('查詢失敗：' + error.message, 'error');
+                showToast('查詢失敗', 'error');
             }
         }
 

@@ -1,6 +1,5 @@
 /**
- * 管理員報表 API
- * 潮欣小幫手 - 店員操作追蹤
+ * 管理員報表 API (PostgreSQL 版本)
  */
 
 const express = require('express');
@@ -8,59 +7,44 @@ const router = express.Router();
 
 module.exports = function(db) {
     
-    /**
-     * GET /api/reports/overview
-     * 取得總覽統計
-     */
-    router.get('/overview', (req, res) => {
+    // GET /api/reports/overview - 取得總覽統計
+    router.get('/overview', async (req, res) => {
         try {
-            // 今日統計
-            const today = db.prepare(`
+            const todayResult = await db.query(`
                 SELECT 
                     COUNT(*) as total,
                     SUM(CASE WHEN action = 'sold' THEN 1 ELSE 0 END) as sold,
                     SUM(CASE WHEN action = 'disposed' THEN 1 ELSE 0 END) as disposed,
                     SUM(CASE WHEN action = 'register' THEN 1 ELSE 0 END) as registered
                 FROM operation_logs
-                WHERE DATE(created_at) = DATE('now', 'localtime')
-            `).get();
+                WHERE DATE(created_at AT TIME ZONE 'Asia/Taipei') = CURRENT_DATE
+            `);
+            const today = todayResult.rows[0];
 
-            // 本週統計
-            const week = db.prepare(`
+            const weekResult = await db.query(`
                 SELECT 
                     COUNT(*) as total,
                     SUM(CASE WHEN action = 'sold' THEN 1 ELSE 0 END) as sold,
                     SUM(CASE WHEN action = 'disposed' THEN 1 ELSE 0 END) as disposed
                 FROM operation_logs
-                WHERE DATE(created_at) >= DATE('now', 'localtime', '-7 days')
-            `).get();
+                WHERE created_at >= NOW() - INTERVAL '7 days'
+            `);
+            const week = weekResult.rows[0];
 
-            // 計算售出率
-            const todaySellRate = today.sold + today.disposed > 0 
-                ? Math.round(today.sold / (today.sold + today.disposed) * 100) 
-                : 0;
-            const weekSellRate = week.sold + week.disposed > 0 
-                ? Math.round(week.sold / (week.sold + week.disposed) * 100) 
-                : 0;
+            const todaySellRate = parseInt(today.sold) + parseInt(today.disposed) > 0 
+                ? Math.round(parseInt(today.sold) / (parseInt(today.sold) + parseInt(today.disposed)) * 100) : 0;
+            const weekSellRate = parseInt(week.sold) + parseInt(week.disposed) > 0 
+                ? Math.round(parseInt(week.sold) / (parseInt(week.sold) + parseInt(week.disposed)) * 100) : 0;
 
-            // 待處理商品數（目前在庫且即將到期）
-            const pending = db.prepare(`
-                SELECT COUNT(*) as count
-                FROM inventory
-                WHERE status = 'in_stock'
-                AND datetime(expiry_date) <= datetime('now', 'localtime', '+24 hours')
-            `).get();
+            const pendingResult = await db.query(`
+                SELECT COUNT(*) as count FROM inventory
+                WHERE status = 'in_stock' AND expiry_date <= NOW() + INTERVAL '24 hours'
+            `);
 
             res.json({
-                today: {
-                    ...today,
-                    sellRate: todaySellRate
-                },
-                week: {
-                    ...week,
-                    sellRate: weekSellRate
-                },
-                pending: pending.count
+                today: { ...today, total: parseInt(today.total), sold: parseInt(today.sold), disposed: parseInt(today.disposed), registered: parseInt(today.registered), sellRate: todaySellRate },
+                week: { ...week, total: parseInt(week.total), sold: parseInt(week.sold), disposed: parseInt(week.disposed), sellRate: weekSellRate },
+                pending: parseInt(pendingResult.rows[0].count)
             });
         } catch (error) {
             console.error('取得報表總覽失敗:', error);
@@ -68,88 +52,59 @@ module.exports = function(db) {
         }
     });
 
-    /**
-     * GET /api/reports/staff
-     * 取得店員操作統計
-     */
-    router.get('/staff', (req, res) => {
+    // GET /api/reports/staff - 取得店員操作統計
+    router.get('/staff', async (req, res) => {
         try {
             const { period = 'week' } = req.query;
-            
-            let dateFilter = "DATE(created_at) >= DATE('now', 'localtime', '-7 days')";
-            if (period === 'today') {
-                dateFilter = "DATE(created_at) = DATE('now', 'localtime')";
-            } else if (period === 'month') {
-                dateFilter = "DATE(created_at) >= DATE('now', 'localtime', '-30 days')";
-            }
+            let dateFilter = "created_at >= NOW() - INTERVAL '7 days'";
+            if (period === 'today') dateFilter = "DATE(created_at AT TIME ZONE 'Asia/Taipei') = CURRENT_DATE";
+            else if (period === 'month') dateFilter = "created_at >= NOW() - INTERVAL '30 days'";
 
-            const stats = db.prepare(`
-                SELECT 
-                    user_id,
-                    user_name,
-                    COUNT(*) as total_actions,
+            const result = await db.query(`
+                SELECT user_id, user_name, COUNT(*) as total_actions,
                     SUM(CASE WHEN action = 'sold' THEN 1 ELSE 0 END) as sold_count,
                     SUM(CASE WHEN action = 'disposed' THEN 1 ELSE 0 END) as disposed_count,
                     SUM(CASE WHEN action = 'register' THEN 1 ELSE 0 END) as register_count,
                     MAX(created_at) as last_action
-                FROM operation_logs
-                WHERE ${dateFilter}
-                GROUP BY user_id
-                ORDER BY total_actions DESC
-            `).all();
+                FROM operation_logs WHERE ${dateFilter}
+                GROUP BY user_id, user_name ORDER BY total_actions DESC
+            `);
 
-            // 計算每人的處理率
-            const result = stats.map(s => ({
-                ...s,
-                sellRate: s.sold_count + s.disposed_count > 0
-                    ? Math.round(s.sold_count / (s.sold_count + s.disposed_count) * 100)
-                    : 0
+            const stats = result.rows.map(s => ({
+                ...s, total_actions: parseInt(s.total_actions), sold_count: parseInt(s.sold_count),
+                disposed_count: parseInt(s.disposed_count), register_count: parseInt(s.register_count),
+                sellRate: parseInt(s.sold_count) + parseInt(s.disposed_count) > 0
+                    ? Math.round(parseInt(s.sold_count) / (parseInt(s.sold_count) + parseInt(s.disposed_count)) * 100) : 0
             }));
-
-            res.json(result);
+            res.json(stats);
         } catch (error) {
             console.error('取得店員統計失敗:', error);
             res.status(500).json({ error: error.message });
         }
     });
 
-    /**
-     * GET /api/reports/logs
-     * 取得操作記錄列表
-     */
-    router.get('/logs', (req, res) => {
+    // GET /api/reports/logs - 取得操作記錄列表
+    router.get('/logs', async (req, res) => {
         try {
             const { limit = 50, offset = 0, user_id, action } = req.query;
-            
             let whereClause = '1=1';
             const params = [];
+            let paramIndex = 1;
             
-            if (user_id) {
-                whereClause += ' AND user_id = ?';
-                params.push(user_id);
-            }
-            if (action) {
-                whereClause += ' AND action = ?';
-                params.push(action);
-            }
+            if (user_id) { whereClause += ` AND user_id = $${paramIndex++}`; params.push(user_id); }
+            if (action) { whereClause += ` AND action = $${paramIndex++}`; params.push(action); }
 
-            const logs = db.prepare(`
-                SELECT 
-                    id, user_id, user_name, action, product_name, 
-                    details, source, created_at
-                FROM operation_logs
-                WHERE ${whereClause}
-                ORDER BY created_at DESC
-                LIMIT ? OFFSET ?
-            `).all(...params, parseInt(limit), parseInt(offset));
+            const logsResult = await db.query(`
+                SELECT id, user_id, user_name, action, product_name, details, source, created_at
+                FROM operation_logs WHERE ${whereClause}
+                ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}
+            `, [...params, parseInt(limit), parseInt(offset)]);
 
-            const total = db.prepare(`
-                SELECT COUNT(*) as count FROM operation_logs WHERE ${whereClause}
-            `).get(...params);
+            const totalResult = await db.query(`SELECT COUNT(*) as count FROM operation_logs WHERE ${whereClause}`, params);
 
             res.json({
-                logs,
-                total: total.count,
+                logs: logsResult.rows,
+                total: parseInt(totalResult.rows[0].count),
                 limit: parseInt(limit),
                 offset: parseInt(offset)
             });
@@ -159,71 +114,52 @@ module.exports = function(db) {
         }
     });
 
-    /**
-     * GET /api/reports/products
-     * 取得商品報廢統計（哪些商品常報廢）
-     */
-    router.get('/products', (req, res) => {
+    // GET /api/reports/products - 取得商品報廢統計
+    router.get('/products', async (req, res) => {
         try {
             const { period = 'month' } = req.query;
-            
-            let dateFilter = "DATE(o.created_at) >= DATE('now', 'localtime', '-30 days')";
-            if (period === 'week') {
-                dateFilter = "DATE(o.created_at) >= DATE('now', 'localtime', '-7 days')";
-            }
+            let dateFilter = "o.created_at >= NOW() - INTERVAL '30 days'";
+            if (period === 'week') dateFilter = "o.created_at >= NOW() - INTERVAL '7 days'";
 
-            const stats = db.prepare(`
-                SELECT 
-                    o.product_name,
-                    COUNT(*) as total,
+            const result = await db.query(`
+                SELECT o.product_name, COUNT(*) as total,
                     SUM(CASE WHEN o.action = 'sold' THEN 1 ELSE 0 END) as sold,
                     SUM(CASE WHEN o.action = 'disposed' THEN 1 ELSE 0 END) as disposed
                 FROM operation_logs o
-                WHERE ${dateFilter}
-                AND o.action IN ('sold', 'disposed')
-                AND o.product_name IS NOT NULL
-                GROUP BY o.product_name
-                ORDER BY disposed DESC, total DESC
-                LIMIT 20
-            `).all();
+                WHERE ${dateFilter} AND o.action IN ('sold', 'disposed') AND o.product_name IS NOT NULL
+                GROUP BY o.product_name ORDER BY disposed DESC, total DESC LIMIT 20
+            `);
 
-            // 標記需要注意的商品（報廢率 > 50%）
-            const result = stats.map(s => ({
-                ...s,
-                sellRate: s.sold + s.disposed > 0 
-                    ? Math.round(s.sold / (s.sold + s.disposed) * 100) 
-                    : 0,
-                needsAttention: s.disposed > s.sold
+            const stats = result.rows.map(s => ({
+                ...s, total: parseInt(s.total), sold: parseInt(s.sold), disposed: parseInt(s.disposed),
+                sellRate: parseInt(s.sold) + parseInt(s.disposed) > 0 
+                    ? Math.round(parseInt(s.sold) / (parseInt(s.sold) + parseInt(s.disposed)) * 100) : 0,
+                needsAttention: parseInt(s.disposed) > parseInt(s.sold)
             }));
-
-            res.json(result);
+            res.json(stats);
         } catch (error) {
             console.error('取得商品統計失敗:', error);
             res.status(500).json({ error: error.message });
         }
     });
 
-    /**
-     * GET /api/reports/daily
-     * 取得每日趨勢
-     */
-    router.get('/daily', (req, res) => {
+    // GET /api/reports/daily - 取得每日趨勢
+    router.get('/daily', async (req, res) => {
         try {
             const { days = 7 } = req.query;
-
-            const stats = db.prepare(`
-                SELECT 
-                    DATE(created_at) as date,
+            const result = await db.query(`
+                SELECT DATE(created_at AT TIME ZONE 'Asia/Taipei') as date,
                     SUM(CASE WHEN action = 'sold' THEN 1 ELSE 0 END) as sold,
                     SUM(CASE WHEN action = 'disposed' THEN 1 ELSE 0 END) as disposed,
                     SUM(CASE WHEN action = 'register' THEN 1 ELSE 0 END) as registered
                 FROM operation_logs
-                WHERE DATE(created_at) >= DATE('now', 'localtime', '-' || ? || ' days')
-                GROUP BY DATE(created_at)
-                ORDER BY date ASC
-            `).all(parseInt(days));
+                WHERE created_at >= NOW() - INTERVAL '1 day' * $1
+                GROUP BY DATE(created_at AT TIME ZONE 'Asia/Taipei') ORDER BY date ASC
+            `, [parseInt(days)]);
 
-            res.json(stats);
+            res.json(result.rows.map(r => ({
+                ...r, sold: parseInt(r.sold), disposed: parseInt(r.disposed), registered: parseInt(r.registered)
+            })));
         } catch (error) {
             console.error('取得每日趨勢失敗:', error);
             res.status(500).json({ error: error.message });

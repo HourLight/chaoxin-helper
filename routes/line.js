@@ -1,5 +1,5 @@
 /**
- * LINE Bot 設定 API 路由
+ * LINE Bot 設定 API 路由 (PostgreSQL 版本)
  */
 
 const express = require('express');
@@ -8,14 +8,12 @@ module.exports = function(db) {
     const router = express.Router();
 
     // 取得 LINE Bot 設定
-    router.get('/settings', (req, res) => {
+    router.get('/settings', async (req, res) => {
         try {
-            const settings = db.prepare(`
-                SELECT * FROM line_settings ORDER BY id DESC LIMIT 1
-            `).get();
+            const result = await db.query('SELECT * FROM line_settings ORDER BY id DESC LIMIT 1');
             
-            if (settings) {
-                // 隱藏敏感資訊，只顯示部分
+            if (result.rows.length > 0) {
+                const settings = result.rows[0];
                 res.json({
                     id: settings.id,
                     hasChannelSecret: !!settings.channel_secret,
@@ -39,35 +37,26 @@ module.exports = function(db) {
     });
 
     // 更新 LINE Bot 設定
-    router.post('/settings', (req, res) => {
+    router.post('/settings', async (req, res) => {
         try {
             const { channel_secret, channel_access_token, group_id } = req.body;
             
-            // 檢查是否已有設定
-            const existing = db.prepare('SELECT id FROM line_settings LIMIT 1').get();
+            const existing = await db.query('SELECT id FROM line_settings LIMIT 1');
             
-            if (existing) {
-                // 更新現有設定
-                const stmt = db.prepare(`
+            if (existing.rows.length > 0) {
+                await db.query(`
                     UPDATE line_settings 
-                    SET channel_secret = ?, 
-                        channel_access_token = ?, 
-                        group_id = ?,
-                        is_active = 1,
-                        updated_at = datetime('now')
-                    WHERE id = ?
-                `);
-                stmt.run(channel_secret, channel_access_token, group_id || null, existing.id);
+                    SET channel_secret = $1, channel_access_token = $2, group_id = $3,
+                        is_active = 1, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = $4
+                `, [channel_secret, channel_access_token, group_id || null, existing.rows[0].id]);
             } else {
-                // 新增設定
-                const stmt = db.prepare(`
+                await db.query(`
                     INSERT INTO line_settings (channel_secret, channel_access_token, group_id, is_active)
-                    VALUES (?, ?, ?, 1)
-                `);
-                stmt.run(channel_secret, channel_access_token, group_id || null);
+                    VALUES ($1, $2, $3, 1)
+                `, [channel_secret, channel_access_token, group_id || null]);
             }
 
-            // 更新環境變數（僅在記憶體中）
             if (channel_secret) process.env.LINE_CHANNEL_SECRET = channel_secret;
             if (channel_access_token) process.env.LINE_CHANNEL_ACCESS_TOKEN = channel_access_token;
             if (group_id) process.env.LINE_GROUP_ID = group_id;
@@ -83,33 +72,21 @@ module.exports = function(db) {
     router.post('/test', async (req, res) => {
         try {
             const line = require('@line/bot-sdk');
-            
-            const settings = db.prepare(`
-                SELECT * FROM line_settings WHERE is_active = 1 ORDER BY id DESC LIMIT 1
-            `).get();
+            const result = await db.query('SELECT * FROM line_settings WHERE is_active = 1 ORDER BY id DESC LIMIT 1');
 
-            if (!settings || !settings.channel_access_token) {
+            if (result.rows.length === 0 || !result.rows[0].channel_access_token) {
                 return res.status(400).json({ error: '請先設定 LINE Bot' });
             }
 
             const client = new line.messagingApi.MessagingApiClient({
-                channelAccessToken: settings.channel_access_token
+                channelAccessToken: result.rows[0].channel_access_token
             });
 
-            // 測試取得 Bot 資訊
             const botInfo = await client.getBotInfo();
-            
-            res.json({ 
-                success: true, 
-                message: '✅ 連線成功！',
-                botName: botInfo.displayName
-            });
+            res.json({ success: true, message: '✅ 連線成功！', botName: botInfo.displayName });
         } catch (error) {
             console.error('LINE Bot 測試失敗:', error);
-            res.status(500).json({ 
-                error: '連線失敗，請檢查設定是否正確',
-                detail: error.message 
-            });
+            res.status(500).json({ error: '連線失敗，請檢查設定是否正確', detail: error.message });
         }
     });
 
@@ -117,41 +94,28 @@ module.exports = function(db) {
     router.post('/test-message', async (req, res) => {
         try {
             const line = require('@line/bot-sdk');
-            
-            const settings = db.prepare(`
-                SELECT * FROM line_settings WHERE is_active = 1 ORDER BY id DESC LIMIT 1
-            `).get();
+            const result = await db.query('SELECT * FROM line_settings WHERE is_active = 1 ORDER BY id DESC LIMIT 1');
 
-            if (!settings || !settings.channel_access_token) {
+            if (result.rows.length === 0 || !result.rows[0].channel_access_token) {
                 return res.status(400).json({ error: '請先設定 LINE Bot' });
             }
-
-            if (!settings.group_id) {
+            if (!result.rows[0].group_id) {
                 return res.status(400).json({ error: '請先設定群組 ID' });
             }
 
             const client = new line.messagingApi.MessagingApiClient({
-                channelAccessToken: settings.channel_access_token
+                channelAccessToken: result.rows[0].channel_access_token
             });
 
             await client.pushMessage({
-                to: settings.group_id,
-                messages: [{
-                    type: 'text',
-                    text: '🎉 潮欣小幫手測試訊息\n\n如果你收到這則訊息，表示 LINE Bot 設定成功啦！💚'
-                }]
+                to: result.rows[0].group_id,
+                messages: [{ type: 'text', text: '🎉 潮欣小幫手測試訊息\n\n如果你收到這則訊息，表示 LINE Bot 設定成功啦！💚' }]
             });
             
-            res.json({ 
-                success: true, 
-                message: '✅ 測試訊息已發送到群組！' 
-            });
+            res.json({ success: true, message: '✅ 測試訊息已發送到群組！' });
         } catch (error) {
             console.error('發送測試訊息失敗:', error);
-            res.status(500).json({ 
-                error: '發送失敗，請檢查群組 ID 是否正確',
-                detail: error.message 
-            });
+            res.status(500).json({ error: '發送失敗，請檢查群組 ID 是否正確', detail: error.message });
         }
     });
 

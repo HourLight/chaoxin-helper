@@ -1,6 +1,6 @@
 /**
  * 潮欣小幫手 - 便利商店生鮮品效期管理系統
- * 主伺服器檔案
+ * 主伺服器檔案 (PostgreSQL 版本)
  */
 
 require('dotenv').config();
@@ -8,23 +8,29 @@ const express = require('express');
 const path = require('path');
 const multer = require('multer');
 const cron = require('node-cron');
-const Database = require('better-sqlite3');
+const db = require('./database/db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 初始化資料庫
-const db = new Database(path.join(__dirname, 'database', 'chaoxin.db'));
-const fs = require('fs');
-const schema = fs.readFileSync(path.join(__dirname, 'database', 'schema.sql'), 'utf8');
-db.exec(schema);
+let dbReady = false;
+db.initDatabase().then(() => {
+    dbReady = true;
+    console.log('✅ 資料庫初始化完成');
+    
+    // 初始化籤卡資料
+    const fortuneService = require('./services/fortune')(db);
+    fortuneService.initFortuneCards();
+}).catch(err => {
+    console.error('❌ 資料庫初始化失敗:', err);
+});
 
 // LINE Webhook - 必須放在最前面，用 raw body
 app.post('/webhook', express.raw({ type: '*/*' }), async (req, res) => {
     console.log('=== 收到 LINE Webhook ===');
     
     try {
-        // 解析 body
         let body;
         if (Buffer.isBuffer(req.body)) {
             body = JSON.parse(req.body.toString());
@@ -34,21 +40,16 @@ app.post('/webhook', express.raw({ type: '*/*' }), async (req, res) => {
             body = req.body;
         }
         
-        console.log('Events:', JSON.stringify(body.events, null, 2));
-        
         const events = body.events || [];
         if (events.length === 0) {
-            console.log('沒有事件');
             return res.status(200).send('OK');
         }
 
         const lineBot = require('./services/line-bot')(db);
         for (const event of events) {
-            console.log('處理事件:', event.type);
             await lineBot.handleEvent(event);
         }
         
-        console.log('=== Webhook 處理完成 ===');
         res.status(200).send('OK');
     } catch (error) {
         console.error('Webhook 錯誤:', error);
@@ -56,18 +57,15 @@ app.post('/webhook', express.raw({ type: '*/*' }), async (req, res) => {
     }
 });
 
-// Middleware（放在 webhook 之後）
+// Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/images', express.static(path.join(__dirname, 'images'))); // 吉祥物圖片
+app.use('/images', express.static(path.join(__dirname, 'images')));
 
 // 圖片上傳設定
 const storage = multer.memoryStorage();
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }
-});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 // 匯入路由
 const apiRoutes = require('./routes/api')(db);
@@ -91,14 +89,9 @@ app.use('/api/reports', reportsRoutes);
 const aiRecognition = require('./services/ai-recognition');
 app.post('/api/recognize', upload.single('image'), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: '請上傳圖片' });
-        }
-        
+        if (!req.file) return res.status(400).json({ error: '請上傳圖片' });
         const base64Image = req.file.buffer.toString('base64');
-        const mimeType = req.file.mimetype;
-        
-        const result = await aiRecognition.recognizeProduct(base64Image, mimeType);
+        const result = await aiRecognition.recognizeProduct(base64Image, req.file.mimetype);
         res.json(result);
     } catch (error) {
         console.error('AI 辨識錯誤:', error);
@@ -119,107 +112,54 @@ app.post('/api/notify/manual', async (req, res) => {
 });
 
 // 頁面路由
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/smart-register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'smart-register.html')));
+app.get('/traditional-register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'traditional-register.html')));
+app.get('/products', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'products.html')));
+app.get('/inventory', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'inventory.html')));
+app.get('/settings', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'settings.html')));
+app.get('/line-settings', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'line-settings.html')));
+app.get('/fortune', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'fortune.html')));
+app.get('/achievements', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'achievements.html')));
+app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html')));
+app.get('/reports', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'reports.html')));
 
-app.get('/smart-register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'smart-register.html'));
-});
-
-app.get('/traditional-register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'traditional-register.html'));
-});
-
-app.get('/quick-register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'quick-register.html'));
-});
-
-app.get('/products', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'products.html'));
-});
-
-app.get('/inventory', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'inventory.html'));
-});
-
-app.get('/settings', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'settings.html'));
-});
-
-app.get('/line-settings', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'line-settings.html'));
-});
-
-// === 2.0 新增頁面 ===
-app.get('/fortune', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'fortune.html'));
-});
-
-app.get('/achievements', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'achievements.html'));
-});
-
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html'));
-});
-
-app.get('/reports', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'reports.html'));
-});
-
-// 初始化籤卡資料
-const fortuneService = require('./services/fortune')(db);
-fortuneService.initFortuneCards();
-
-// 定時任務 - 每天早上 10 點發送「今天」效期提醒
-const cronTime = process.env.NOTIFICATION_CRON_TIME || '0 10 * * *';
-cron.schedule(cronTime, async () => {
-    console.log('執行定時效期提醒任務（今天到期）...');
+// 定時任務 - 每天早上 10 點發送效期提醒
+cron.schedule('0 10 * * *', async () => {
+    console.log('執行定時效期提醒...');
     try {
         const notificationService = require('./services/notification')(db);
         await notificationService.sendExpiryNotifications();
-        console.log('定時提醒發送完成');
     } catch (error) {
-        console.error('定時提醒發送失敗:', error);
+        console.error('定時提醒失敗:', error);
     }
-}, {
-    timezone: "Asia/Taipei"
-});
+}, { timezone: "Asia/Taipei" });
 
-// 定時任務 - 每天晚上 9 點發送「明天」效期提醒
+// 定時任務 - 每天晚上 9 點發送明天效期提醒
 cron.schedule('0 21 * * *', async () => {
-    console.log('執行定時效期提醒任務（明天到期）...');
     try {
         const notificationService = require('./services/notification')(db);
         await notificationService.sendTomorrowExpiryNotifications();
-        console.log('明天到期提醒發送完成');
     } catch (error) {
-        console.error('明天到期提醒發送失敗:', error);
+        console.error('明天到期提醒失敗:', error);
     }
-}, {
-    timezone: "Asia/Taipei"
-});
+}, { timezone: "Asia/Taipei" });
 
 // 啟動伺服器
 app.listen(PORT, () => {
     console.log(`
     ╔══════════════════════════════════════════╗
-    ║                                          ║
     ║   🎉 潮欣小幫手 已啟動！                 ║
-    ║                                          ║
     ║   💚 讓效期管理變簡單！                  ║
-    ║                                          ║
     ║   🌐 http://localhost:${PORT}              ║
-    ║                                          ║
+    ║   🐘 使用 PostgreSQL 資料庫              ║
     ╚══════════════════════════════════════════╝
     `);
 });
 
-// 優雅關閉
 process.on('SIGINT', () => {
     console.log('\n正在關閉伺服器...');
-    db.close();
+    db.pool.end();
     process.exit(0);
 });
 

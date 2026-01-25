@@ -1,62 +1,17 @@
 /**
- * 商品 API 路由
+ * 商品 API 路由 (PostgreSQL 版本)
  */
 
 const express = require('express');
-const barcodeLookup = require('../services/barcode-lookup');
 
 module.exports = function(db) {
     const router = express.Router();
 
-    // 🆕 智慧條碼查詢（整合外部資料庫）
-    // 查詢順序：本地 → Open Food Facts → UPCitemdb
-    router.get('/lookup/:barcode', async (req, res) => {
-        try {
-            const { barcode } = req.params;
-            
-            if (!barcode) {
-                return res.status(400).json({ error: '請提供條碼' });
-            }
-
-            // 查詢條碼（會依序嘗試各個資料庫）
-            const result = await barcodeLookup.lookupBarcode(barcode, db);
-            
-            if (result) {
-                res.json({
-                    success: true,
-                    found: true,
-                    source: result.source,
-                    product: {
-                        barcode: result.barcode,
-                        name: result.name,
-                        brand: result.brand,
-                        category: result.category,
-                        storage_temp: result.storage_temp || 'refrigerated',
-                        image_url: result.image_url,
-                        product_id: result.product_id || null
-                    }
-                });
-            } else {
-                res.json({
-                    success: true,
-                    found: false,
-                    message: '找不到此條碼的商品資料，請手動輸入或使用 AI 辨識'
-                });
-            }
-            
-        } catch (error) {
-            console.error('條碼查詢錯誤:', error);
-            res.status(500).json({ error: '查詢失敗', details: error.message });
-        }
-    });
-
     // 取得所有商品
-    router.get('/', (req, res) => {
+    router.get('/', async (req, res) => {
         try {
-            const products = db.prepare(`
-                SELECT * FROM products ORDER BY created_at DESC
-            `).all();
-            res.json(products);
+            const result = await db.query('SELECT * FROM products ORDER BY created_at DESC');
+            res.json(result.rows);
         } catch (error) {
             console.error('取得商品列表失敗:', error);
             res.status(500).json({ error: '取得商品列表失敗' });
@@ -64,14 +19,11 @@ module.exports = function(db) {
     });
 
     // 根據條碼查詢商品
-    router.get('/barcode/:barcode', (req, res) => {
+    router.get('/barcode/:barcode', async (req, res) => {
         try {
-            const product = db.prepare(`
-                SELECT * FROM products WHERE barcode = ?
-            `).get(req.params.barcode);
-            
-            if (product) {
-                res.json(product);
+            const result = await db.query('SELECT * FROM products WHERE barcode = $1', [req.params.barcode]);
+            if (result.rows.length > 0) {
+                res.json(result.rows[0]);
             } else {
                 res.status(404).json({ error: '商品不存在' });
             }
@@ -82,7 +34,7 @@ module.exports = function(db) {
     });
 
     // 新增商品
-    router.post('/', (req, res) => {
+    router.post('/', async (req, res) => {
         try {
             const { barcode, name, category, storage_temp } = req.body;
             
@@ -91,23 +43,22 @@ module.exports = function(db) {
             }
 
             // 檢查條碼是否已存在
-            const existing = db.prepare('SELECT id FROM products WHERE barcode = ?').get(barcode);
-            if (existing) {
+            const existing = await db.query('SELECT id FROM products WHERE barcode = $1', [barcode]);
+            if (existing.rows.length > 0) {
                 return res.json({ 
-                    id: existing.id, 
+                    id: existing.rows[0].id, 
                     isNew: false, 
                     message: '商品已存在' 
                 });
             }
 
-            const stmt = db.prepare(`
-                INSERT INTO products (barcode, name, category, storage_temp)
-                VALUES (?, ?, ?, ?)
-            `);
-            const result = stmt.run(barcode, name, category || null, storage_temp || 'refrigerated');
+            const result = await db.query(
+                'INSERT INTO products (barcode, name, category, storage_temp) VALUES ($1, $2, $3, $4) RETURNING id',
+                [barcode, name, category || null, storage_temp || 'refrigerated']
+            );
             
             res.json({ 
-                id: result.lastInsertRowid, 
+                id: result.rows[0].id, 
                 isNew: true, 
                 message: '✅ 新商品已建檔' 
             });
@@ -118,15 +69,13 @@ module.exports = function(db) {
     });
 
     // 更新商品
-    router.put('/:id', (req, res) => {
+    router.put('/:id', async (req, res) => {
         try {
             const { name, category, storage_temp } = req.body;
-            const stmt = db.prepare(`
-                UPDATE products 
-                SET name = ?, category = ?, storage_temp = ?, updated_at = datetime('now')
-                WHERE id = ?
-            `);
-            stmt.run(name, category, storage_temp, req.params.id);
+            await db.query(
+                'UPDATE products SET name = $1, category = $2, storage_temp = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
+                [name, category, storage_temp, req.params.id]
+            );
             res.json({ success: true, message: '商品已更新' });
         } catch (error) {
             console.error('更新商品失敗:', error);
@@ -135,10 +84,9 @@ module.exports = function(db) {
     });
 
     // 刪除商品
-    router.delete('/:id', (req, res) => {
+    router.delete('/:id', async (req, res) => {
         try {
-            const stmt = db.prepare('DELETE FROM products WHERE id = ?');
-            stmt.run(req.params.id);
+            await db.query('DELETE FROM products WHERE id = $1', [req.params.id]);
             res.json({ success: true, message: '商品已刪除' });
         } catch (error) {
             console.error('刪除商品失敗:', error);
@@ -147,15 +95,14 @@ module.exports = function(db) {
     });
 
     // 搜尋商品
-    router.get('/search/:keyword', (req, res) => {
+    router.get('/search/:keyword', async (req, res) => {
         try {
             const keyword = `%${req.params.keyword}%`;
-            const products = db.prepare(`
-                SELECT * FROM products 
-                WHERE name LIKE ? OR barcode LIKE ? OR category LIKE ?
-                ORDER BY name ASC
-            `).all(keyword, keyword, keyword);
-            res.json(products);
+            const result = await db.query(
+                'SELECT * FROM products WHERE name ILIKE $1 OR barcode ILIKE $1 OR category ILIKE $1 ORDER BY name ASC',
+                [keyword]
+            );
+            res.json(result.rows);
         } catch (error) {
             console.error('搜尋商品失敗:', error);
             res.status(500).json({ error: '搜尋商品失敗' });
