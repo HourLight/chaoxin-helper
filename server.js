@@ -115,6 +115,40 @@ app.post('/api/notify/manual', async (req, res) => {
     }
 });
 
+// 手動測試三次提醒
+app.post('/api/notify/morning', async (req, res) => {
+    try {
+        const notificationService = require('./services/notification')(db);
+        const result = await notificationService.sendMorningReminder();
+        res.json(result);
+    } catch (error) {
+        console.error('早上提醒失敗:', error);
+        res.status(500).json({ error: '發送失敗' });
+    }
+});
+
+app.post('/api/notify/afternoon', async (req, res) => {
+    try {
+        const notificationService = require('./services/notification')(db);
+        const result = await notificationService.sendAfternoonReminder();
+        res.json(result);
+    } catch (error) {
+        console.error('下午提醒失敗:', error);
+        res.status(500).json({ error: '發送失敗' });
+    }
+});
+
+app.post('/api/notify/urgent', async (req, res) => {
+    try {
+        const notificationService = require('./services/notification')(db);
+        const result = await notificationService.sendUrgentReminder();
+        res.json(result);
+    } catch (error) {
+        console.error('緊急提醒失敗:', error);
+        res.status(500).json({ error: '發送失敗' });
+    }
+});
+
 // 頁面路由
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/smart-register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'smart-register.html')));
@@ -130,14 +164,36 @@ app.get('/reports', (req, res) => res.sendFile(path.join(__dirname, 'public', 'p
 app.get('/schedule', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'schedule.html')));
 app.get('/my-schedule', (req, res) => res.sendFile(path.join(__dirname, 'public', 'pages', 'my-schedule.html')));
 
-// 定時任務 - 每天早上 10 點發送效期提醒
-cron.schedule('0 10 * * *', async () => {
-    console.log('執行定時效期提醒...');
+// 定時任務 - 早上 9 點提醒（第一次，溫和）
+cron.schedule('0 9 * * *', async () => {
+    console.log('☀️ 執行早上效期提醒...');
     try {
         const notificationService = require('./services/notification')(db);
-        await notificationService.sendExpiryNotifications();
+        await notificationService.sendMorningReminder();
     } catch (error) {
-        console.error('定時提醒失敗:', error);
+        console.error('早上提醒失敗:', error);
+    }
+}, { timezone: "Asia/Taipei" });
+
+// 定時任務 - 下午 2 點提醒（第二次，中等）
+cron.schedule('0 14 * * *', async () => {
+    console.log('⚠️ 執行下午效期提醒...');
+    try {
+        const notificationService = require('./services/notification')(db);
+        await notificationService.sendAfternoonReminder();
+    } catch (error) {
+        console.error('下午提醒失敗:', error);
+    }
+}, { timezone: "Asia/Taipei" });
+
+// 定時任務 - 晚上 10 點提醒（第三次，緊急）
+cron.schedule('0 22 * * *', async () => {
+    console.log('🚨 執行晚上緊急效期提醒...');
+    try {
+        const notificationService = require('./services/notification')(db);
+        await notificationService.sendUrgentReminder();
+    } catch (error) {
+        console.error('晚上緊急提醒失敗:', error);
     }
 }, { timezone: "Asia/Taipei" });
 

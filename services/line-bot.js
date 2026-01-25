@@ -10,6 +10,22 @@ const aiRecognition = require('./ai-recognition');
 // 官方帳號 ID（用於私訊連結）
 const LINE_OA_ID = process.env.LINE_OA_ID || '@296eywni';
 
+// 🆕 對話狀態管理（記憶體儲存，重啟會清空）
+// 格式：{ oderId: { step, barcode, name, temp, category, ... } }
+const conversationState = new Map();
+
+// 清理過期的對話狀態（超過 10 分鐘）
+function cleanupOldStates() {
+    const now = Date.now();
+    for (const [userId, state] of conversationState.entries()) {
+        if (now - state.timestamp > 10 * 60 * 1000) {
+            conversationState.delete(userId);
+        }
+    }
+}
+// 每 5 分鐘清理一次
+setInterval(cleanupOldStates, 5 * 60 * 1000);
+
 module.exports = function(db) {
     // 引入遊戲化和抽籤服務
     const gamificationService = require('./gamification')(db);
@@ -138,6 +154,63 @@ module.exports = function(db) {
                 replyToken: event.replyToken,
                 messages: [{ type: 'text', text: '✨ 太棒了！「' + productName + '」在到期前就賣掉了！\n\n📝 操作者：' + userName + '\n這表示進貨量剛剛好 👍' }]
             });
+            return null;
+        }
+
+        // 🆕 處理「選擇效期」按鈕
+        if (action === 'set_expiry') {
+            const expiryDate = data.get('date');
+            const barcode = decodeURIComponent(data.get('barcode') || '');
+            
+            // 取得對話狀態
+            const state = conversationState.get(userId);
+            
+            if (!state || !state.productId) {
+                // 沒有對話狀態，嘗試用 barcode 找商品
+                const productResult = await db.query('SELECT * FROM products WHERE barcode = $1', [barcode]);
+                if (productResult.rows.length === 0) {
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '😅 找不到商品資料，請重新拍照登記' }] });
+                    return null;
+                }
+                const product = productResult.rows[0];
+                
+                // 建立庫存
+                await db.query('INSERT INTO inventory (product_id, quantity, expiry_date, status) VALUES ($1, 1, $2, $3)', [product.id, expiryDate, 'in_stock']);
+                
+                // 發送成功訊息
+                const expDate = new Date(expiryDate);
+                const minguo = `${expDate.getFullYear() - 1911}/${expDate.getMonth() + 1}/${expDate.getDate()}`;
+                
+                await client.replyMessage({
+                    replyToken: event.replyToken,
+                    messages: [{ type: 'text', text: `🎉 登記成功！\n\n📦 ${product.name}\n📅 效期：${minguo}\n📊 數量：1\n\n📝 操作者：${userName}` }]
+                });
+                
+                // 加 XP
+                if (userId) {
+                    try { await gamificationService.addXP(userId, 20, 'product_register', 'LINE 登記: ' + product.name); } catch (e) {}
+                }
+                
+                conversationState.delete(userId);
+                return null;
+            }
+            
+            // 有對話狀態，使用狀態中的資料
+            await db.query('INSERT INTO inventory (product_id, quantity, expiry_date, status) VALUES ($1, 1, $2, $3)', [state.productId, expiryDate, 'in_stock']);
+            
+            const expDate = new Date(expiryDate);
+            const minguo = `${expDate.getFullYear() - 1911}/${expDate.getMonth() + 1}/${expDate.getDate()}`;
+            
+            await client.replyMessage({
+                replyToken: event.replyToken,
+                messages: [{ type: 'text', text: `🎉 登記成功！\n\n📦 ${state.name}\n📅 效期：${minguo}\n📊 數量：1\n\n📝 操作者：${userName}` }]
+            });
+            
+            if (userId) {
+                try { await gamificationService.addXP(userId, 20, 'product_register', 'LINE 登記: ' + state.name); } catch (e) {}
+            }
+            
+            conversationState.delete(userId);
             return null;
         }
 
@@ -270,8 +343,15 @@ module.exports = function(db) {
             return null;
         }
 
+        const userId = event.source.userId;
+        const targetId = event.source.groupId || event.source.userId;
+
         try {
             await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📸 收到照片！正在辨識中...\n請稍等一下喔～ ⏳' }] });
+            
+            // 等待 1 秒再進行 AI 辨識，避免 LINE API 限流
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
             const result = await aiRecognition.recognizeFromLineImage(messageId);
             const barcode = result.barcode?.value || '';
             const name = result.name?.value || '';
@@ -279,25 +359,168 @@ module.exports = function(db) {
             const temp = result.storage_temp || 'refrigerated';
             const category = result.category || '';
 
-            if (!name && !expiry) {
-                const targetId = event.source.groupId || event.source.userId;
-                await client.pushMessage({ to: targetId, messages: [{ type: 'text', text: '😅 沒有辨識到商品資訊\n\n請確保照片中有：\n📦 商品名稱\n📅 有效期限\n\n或到網頁手動登記：\n' + baseUrl + '/smart-register' }] });
-                return null;
+            // 🆕 對話式流程：檢查條碼是否已存在
+            let existingProduct = null;
+            if (barcode) {
+                const existingResult = await db.query('SELECT * FROM products WHERE barcode = $1', [barcode]);
+                if (existingResult.rows.length > 0) {
+                    existingProduct = existingResult.rows[0];
+                }
             }
-            if (result.mock) {
-                const targetId = event.source.groupId || event.source.userId;
-                await client.pushMessage({ to: targetId, messages: [{ type: 'text', text: '⚠️ 目前為模擬模式\n\n請到網頁手動登記：\n' + baseUrl + '/smart-register' }] });
+
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            // 情況 1：已有此商品，直接問效期
+            if (existingProduct) {
+                // 儲存對話狀態
+                conversationState.set(userId, {
+                    step: 'waiting_expiry',
+                    barcode: barcode,
+                    productId: existingProduct.id,
+                    name: existingProduct.name,
+                    temp: existingProduct.storage_temp || temp,
+                    category: existingProduct.category || category,
+                    timestamp: Date.now()
+                });
+
+                // 發送效期選擇卡片
+                await client.pushMessage({ 
+                    to: targetId, 
+                    messages: [
+                        { type: 'text', text: `✅ 找到商品！\n📦 ${existingProduct.name}\n🔖 條碼：${barcode}` },
+                        createExpirySelectionCard(existingProduct.name, barcode)
+                    ] 
+                });
                 return null;
             }
 
-            const targetId = event.source.groupId || event.source.userId;
-            await client.pushMessage({ to: targetId, messages: [{ type: 'flex', altText: '辨識結果：' + (name || '商品'), contents: createRecognitionResultCard(result, baseUrl) }] });
+            // 情況 2：AI 辨識到名稱和效期，發送確認卡片（原流程）
+            if (name && expiry) {
+                try {
+                    await client.pushMessage({ to: targetId, messages: [{ type: 'flex', altText: '辨識結果：' + name, contents: createRecognitionResultCard(result, baseUrl) }] });
+                } catch (pushError) {
+                    if (pushError.statusCode === 429) {
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                        await client.pushMessage({ to: targetId, messages: [{ type: 'flex', altText: '辨識結果：' + name, contents: createRecognitionResultCard(result, baseUrl) }] });
+                    } else {
+                        throw pushError;
+                    }
+                }
+                return null;
+            }
+
+            // 情況 3：有條碼但是新商品，請輸入品名
+            if (barcode && !existingProduct) {
+                conversationState.set(userId, {
+                    step: 'waiting_name',
+                    barcode: barcode,
+                    temp: temp,
+                    category: category,
+                    timestamp: Date.now()
+                });
+
+                await client.pushMessage({ 
+                    to: targetId, 
+                    messages: [{ 
+                        type: 'text', 
+                        text: `✅ 辨識成功！\n🔖 條碼：${barcode}\n\n📝 這是新商品，請輸入商品名稱：` 
+                    }] 
+                });
+                return null;
+            }
+
+            // 情況 4：什麼都沒辨識到
+            await client.pushMessage({ to: targetId, messages: [{ type: 'text', text: '😅 沒有辨識到商品資訊\n\n請確保照片中有：\n📦 商品名稱或條碼\n\n或到網頁手動登記：\n' + baseUrl + '/smart-register' }] });
+
         } catch (error) {
             console.error('圖片辨識失敗:', error);
             const targetId = event.source.groupId || event.source.userId;
-            await client.pushMessage({ to: targetId, messages: [{ type: 'text', text: '😅 辨識失敗了...\n\n錯誤：' + error.message + '\n\n請到網頁手動登記：\n' + baseUrl + '/smart-register' }] });
+            try {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await client.pushMessage({ to: targetId, messages: [{ type: 'text', text: '😅 辨識過程發生問題\n\n請稍後再試，或到網頁手動登記：\n' + baseUrl + '/smart-register' }] });
+            } catch (e) {
+                console.error('發送錯誤訊息也失敗:', e);
+            }
         }
         return null;
+    }
+
+    /**
+     * 🆕 建立效期選擇卡片（近 7 天按鈕 + 民國年顯示）
+     */
+    function createExpirySelectionCard(productName, barcode) {
+        const today = new Date();
+        const buttons = [];
+        
+        // 產生近 7 天的日期按鈕
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() + i);
+            
+            // 民國年格式
+            const year = date.getFullYear() - 1911;
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const displayDate = `${year}/${month}/${day}`;
+            
+            // ISO 格式（給系統用）
+            const isoDate = date.toISOString().split('T')[0];
+            
+            // 按鈕標籤
+            let label = displayDate;
+            if (i === 0) label = `📅 ${displayDate} (今天)`;
+            else if (i === 1) label = `📅 ${displayDate} (明天)`;
+            else label = `📅 ${displayDate}`;
+            
+            buttons.push({
+                type: 'button',
+                style: i === 0 ? 'primary' : 'secondary',
+                color: i === 0 ? '#E74C3C' : i === 1 ? '#F39C12' : '#888888',
+                height: 'sm',
+                action: {
+                    type: 'postback',
+                    label: label,
+                    data: `action=set_expiry&date=${isoDate}&barcode=${encodeURIComponent(barcode)}`
+                }
+            });
+        }
+
+        return {
+            type: 'flex',
+            altText: '請選擇效期',
+            contents: {
+                type: 'bubble',
+                size: 'kilo',
+                header: {
+                    type: 'box',
+                    layout: 'vertical',
+                    backgroundColor: '#27AE60',
+                    paddingAll: '12px',
+                    contents: [
+                        { type: 'text', text: '📅 請選擇效期', weight: 'bold', color: '#FFFFFF', size: 'md' }
+                    ]
+                },
+                body: {
+                    type: 'box',
+                    layout: 'vertical',
+                    spacing: 'sm',
+                    paddingAll: '12px',
+                    contents: [
+                        { type: 'text', text: `商品：${productName}`, size: 'sm', color: '#666666', wrap: true },
+                        { type: 'separator', margin: 'md' },
+                        ...buttons
+                    ]
+                },
+                footer: {
+                    type: 'box',
+                    layout: 'vertical',
+                    paddingAll: '10px',
+                    contents: [
+                        { type: 'text', text: '或直接輸入日期（格式：2026-01-26）', size: 'xs', color: '#999999', align: 'center' }
+                    ]
+                }
+            }
+        };
     }
 
     function createRecognitionResultCard(result, baseUrl) {
@@ -358,19 +581,131 @@ module.exports = function(db) {
      * 處理文字訊息
      */
     async function handleTextMessage(event, client) {
-        const text = event.message.text.toLowerCase();
+        const text = event.message.text;  // 保留原始大小寫
+        const textLower = text.toLowerCase();
         const baseUrl = process.env.BASE_URL || 'https://chaoxin-helper.onrender.com';
+        const userId = event.source.userId;
+        const targetId = event.source.groupId || event.source.userId;
+
+        // 🆕 先檢查是否有對話狀態（優先處理）
+        const state = conversationState.get(userId);
+        if (state) {
+            // 狀態：等待輸入商品名稱
+            if (state.step === 'waiting_name') {
+                const productName = text.trim();
+                
+                if (productName.length < 1 || productName.length > 50) {
+                    await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '😅 商品名稱請輸入 1-50 字' }] });
+                    return;
+                }
+
+                // 建立新商品
+                const result = await db.query(
+                    'INSERT INTO products (barcode, name, category, storage_temp) VALUES ($1, $2, $3, $4) RETURNING *',
+                    [state.barcode, productName, state.category || null, state.temp || 'refrigerated']
+                );
+                const newProduct = result.rows[0];
+
+                // 更新對話狀態
+                conversationState.set(userId, {
+                    ...state,
+                    step: 'waiting_expiry',
+                    productId: newProduct.id,
+                    name: productName,
+                    timestamp: Date.now()
+                });
+
+                // 發送效期選擇卡片
+                await client.replyMessage({ 
+                    replyToken: event.replyToken, 
+                    messages: [
+                        { type: 'text', text: `✅ 商品已建立！\n📦 名稱：${productName}` },
+                        createExpirySelectionCard(productName, state.barcode)
+                    ] 
+                });
+                return;
+            }
+
+            // 狀態：等待輸入效期（用戶直接輸入日期格式）
+            if (state.step === 'waiting_expiry') {
+                // 檢查是否是日期格式（支援多種格式）
+                const datePatterns = [
+                    /^(\d{4})-(\d{1,2})-(\d{1,2})$/,          // 2026-01-26
+                    /^(\d{3,4})\/(\d{1,2})\/(\d{1,2})$/,      // 114/1/26 或 2026/1/26
+                    /^(\d{1,2})\/(\d{1,2})$/,                  // 1/26（今年）
+                ];
+
+                let expiryDate = null;
+                for (const pattern of datePatterns) {
+                    const match = text.match(pattern);
+                    if (match) {
+                        if (pattern === datePatterns[0]) {
+                            // 2026-01-26
+                            expiryDate = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                        } else if (pattern === datePatterns[1]) {
+                            // 114/1/26 或 2026/1/26
+                            let year = parseInt(match[1]);
+                            if (year < 200) year += 1911; // 民國年轉西元
+                            expiryDate = new Date(year, parseInt(match[2]) - 1, parseInt(match[3]));
+                        } else if (pattern === datePatterns[2]) {
+                            // 1/26（今年）
+                            const currentYear = new Date().getFullYear();
+                            expiryDate = new Date(currentYear, parseInt(match[1]) - 1, parseInt(match[2]));
+                        }
+                        break;
+                    }
+                }
+
+                if (expiryDate && !isNaN(expiryDate.getTime())) {
+                    const isoDate = expiryDate.toISOString().split('T')[0];
+                    
+                    // 建立庫存
+                    await db.query('INSERT INTO inventory (product_id, quantity, expiry_date, status) VALUES ($1, 1, $2, $3)', [state.productId, isoDate, 'in_stock']);
+                    
+                    const minguo = `${expiryDate.getFullYear() - 1911}/${expiryDate.getMonth() + 1}/${expiryDate.getDate()}`;
+                    
+                    // 取得用戶名稱
+                    let userName = '匿名';
+                    try {
+                        const profile = await client.getProfile(userId);
+                        userName = profile.displayName;
+                    } catch (e) {}
+                    
+                    await client.replyMessage({
+                        replyToken: event.replyToken,
+                        messages: [{ type: 'text', text: `🎉 登記成功！\n\n📦 ${state.name}\n📅 效期：${minguo}\n📊 數量：1\n\n📝 操作者：${userName}` }]
+                    });
+                    
+                    if (userId) {
+                        try { await gamificationService.addXP(userId, 20, 'product_register', 'LINE 登記: ' + state.name); } catch (e) {}
+                    }
+                    
+                    conversationState.delete(userId);
+                    return;
+                }
+                // 如果不是日期格式，繼續往下處理其他關鍵字
+            }
+        }
 
         // 主選單關鍵字
         const menuKeywords = ['潮欣小幫手', '小幫手', '店長助理', '小助理', '小妞', '潮欣小妞', '幫助', 'help', '選單', 'menu', '功能', '可以做什麼', '有什麼功能'];
-        if (menuKeywords.some(keyword => text.includes(keyword))) {
+        if (menuKeywords.some(keyword => textLower.includes(keyword))) {
             await client.replyMessage({ replyToken: event.replyToken, messages: [createMenuFlexMessage(baseUrl)] });
             return;
         }
 
+        // 取消登記
+        if (textLower === '取消' || textLower === '取消登記' || textLower === 'cancel') {
+            if (state) {
+                conversationState.delete(userId);
+                await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '已取消登記 ❌' }] });
+                return;
+            }
+        }
+
         // 打招呼
         const greetings = ['你好', '嗨', 'hi', 'hello', '哈囉', '安安', '在嗎'];
-        if (greetings.some(g => text.includes(g))) {
+        if (greetings.some(g => textLower.includes(g))) {
             const hour = new Date().getHours();
             const timeGreeting = hour >= 5 && hour < 12 ? '早安' : hour >= 12 && hour < 18 ? '午安' : '晚安';
             await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: timeGreeting + '～我是潮欣小幫手！🏪\n\n有什麼需要幫忙的嗎？\n輸入「選單」可以看到所有功能喔～' }] });
@@ -378,7 +713,7 @@ module.exports = function(db) {
         }
 
         // 📢 公告查詢
-        if (text.includes('公告') || text.includes('布告') || text.includes('通知')) {
+        if (textLower.includes('公告') || textLower.includes('布告') || textLower.includes('通知')) {
             try {
                 const result = await db.query(
                     'SELECT * FROM announcements WHERE is_active = true ORDER BY updated_at DESC LIMIT 1'
@@ -436,7 +771,7 @@ module.exports = function(db) {
         }
 
         // 📊 今日總覽（店顧問/店長專用）
-        if (text.includes('總覽') || text.includes('店況') || text.includes('今日狀況') || text === '報告') {
+        if (textLower.includes('總覽') || textLower.includes('店況') || textLower.includes('今日狀況') || textLower === '報告') {
             try {
                 const userId = event.source.userId;
                 let displayName = '訪客';
@@ -582,7 +917,7 @@ module.exports = function(db) {
         }
 
         // 📦 效期查詢
-        if (text.includes('效期') || text.includes('到期') || text.includes('即期') || text === '過期') {
+        if (textLower.includes('效期') || textLower.includes('到期') || textLower.includes('即期') || textLower === '過期') {
             try {
                 // 查詢即將到期商品（24小時內）
                 const expiringResult = await db.query(`
@@ -638,7 +973,7 @@ module.exports = function(db) {
         }
 
         // 📦 庫存查詢
-        if (text.includes('庫存') || text.includes('有什麼') || text.includes('還有')) {
+        if (textLower.includes('庫存') || textLower.includes('有什麼') || textLower.includes('還有')) {
             try {
                 const inventoryResult = await db.query(`
                     SELECT p.name, p.storage_temp, SUM(i.quantity) as total
@@ -688,7 +1023,7 @@ module.exports = function(db) {
 
         // 🎮 簽到功能
         const checkinKeywords = ['簽到', '打卡', 'checkin', '報到'];
-        if (checkinKeywords.some(keyword => text.includes(keyword))) {
+        if (checkinKeywords.some(keyword => textLower.includes(keyword))) {
             const userId = event.source.userId;
             if (!userId) {
                 await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '😅 無法識別你的身份，請私訊我或加我為好友喔～' }] });
@@ -757,7 +1092,7 @@ module.exports = function(db) {
 
         // 🎴 抽籤功能
         const fortuneKeywords = ['抽籤', '抽', '運勢', '籤', '幸運', '占卜', '今日運勢'];
-        if (fortuneKeywords.some(keyword => text === keyword || (keyword.length > 1 && text.includes(keyword)))) {
+        if (fortuneKeywords.some(keyword => textLower === keyword || (keyword.length > 1 && textLower.includes(keyword)))) {
             const userId = event.source.userId;
             const isGroup = event.source.type === 'group';
             if (!userId) {
@@ -793,7 +1128,7 @@ module.exports = function(db) {
 
         // 💪 我的成就
         const achievementKeywords = ['成就', '我的成就', '戰績', '我的狀態', '狀態'];
-        if (achievementKeywords.some(keyword => text.includes(keyword))) {
+        if (achievementKeywords.some(keyword => textLower.includes(keyword))) {
             const userId = event.source.userId;
             if (!userId) {
                 await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '😅 無法識別你的身份，請私訊我喔～' }] });
@@ -806,7 +1141,7 @@ module.exports = function(db) {
         }
 
         // 拍照辨識指令
-        if (text.includes('拍照') || text.includes('辨識') || text.includes('掃描') || text.includes('ai') || text.includes('登記')) {
+        if (textLower.includes('拍照') || textLower.includes('辨識') || textLower.includes('掃描') || textLower.includes('ai') || textLower.includes('登記')) {
             const isGroup = event.source.type === 'group';
             if (isGroup) {
                 await client.replyMessage({
@@ -830,12 +1165,12 @@ module.exports = function(db) {
         }
 
         // 時段問候
-        if (text.includes('早安')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '早安！☀️ 新的一天開始囉～\n\n別忘了檢查一下今天有沒有商品要到期喔！\n輸入「今天」可以快速查詢 📋' }] }); return; }
-        if (text.includes('午安')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '午安！🌤️ 吃飽了嗎？\n\n下午繼續加油！記得補充水分喔～ 💧' }] }); return; }
-        if (text.includes('晚安')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '晚安！🌙 今天辛苦了～\n\n明天見囉，好好休息！😴' }] }); return; }
+        if (textLower.includes('早安')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '早安！☀️ 新的一天開始囉～\n\n別忘了檢查一下今天有沒有商品要到期喔！\n輸入「今天」可以快速查詢 📋' }] }); return; }
+        if (textLower.includes('午安')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '午安！🌤️ 吃飽了嗎？\n\n下午繼續加油！記得補充水分喔～ 💧' }] }); return; }
+        if (textLower.includes('晚安')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '晚安！🌙 今天辛苦了～\n\n明天見囉，好好休息！😴' }] }); return; }
 
         // 效期查詢
-        if (text.includes('效期') || text.includes('到期') || text.includes('過期')) {
+        if (textLower.includes('效期') || textLower.includes('到期') || textLower.includes('過期')) {
             const expiringResult = await db.query("SELECT COUNT(*) as count FROM inventory WHERE status = 'in_stock' AND expiry_date <= NOW() + INTERVAL '24 hours' AND expiry_date > NOW()");
             const totalResult = await db.query("SELECT COUNT(*) as count FROM inventory WHERE status = 'in_stock'");
             const expiredResult = await db.query("SELECT COUNT(*) as count FROM inventory WHERE status = 'in_stock' AND expiry_date <= NOW()");
@@ -844,7 +1179,7 @@ module.exports = function(db) {
         }
 
         // 今天到期
-        if (text.includes('今天') || text.includes('今日')) {
+        if (textLower.includes('今天') || textLower.includes('今日')) {
             const todayResult = await db.query("SELECT p.name, i.expiry_date, i.quantity, p.storage_temp FROM inventory i JOIN products p ON i.product_id = p.id WHERE i.status = 'in_stock' AND DATE(i.expiry_date) = CURRENT_DATE ORDER BY i.expiry_date ASC LIMIT 10");
             const todayItems = todayResult.rows;
             if (todayItems.length === 0) {
@@ -857,7 +1192,7 @@ module.exports = function(db) {
         }
 
         // 明天到期
-        if (text.includes('明天') || text.includes('明日')) {
+        if (textLower.includes('明天') || textLower.includes('明日')) {
             const tomorrowResult = await db.query("SELECT p.name, i.expiry_date, i.quantity, p.storage_temp FROM inventory i JOIN products p ON i.product_id = p.id WHERE i.status = 'in_stock' AND DATE(i.expiry_date) = CURRENT_DATE + INTERVAL '1 day' ORDER BY i.expiry_date ASC LIMIT 10");
             const tomorrowItems = tomorrowResult.rows;
             if (tomorrowItems.length === 0) {
@@ -870,7 +1205,7 @@ module.exports = function(db) {
         }
 
         // 庫存查詢
-        if (text.includes('庫存') || text.includes('有什麼') || text.includes('多少')) {
+        if (textLower.includes('庫存') || textLower.includes('有什麼') || textLower.includes('多少')) {
             const totalItemsResult = await db.query("SELECT COUNT(*) as count FROM inventory WHERE status = 'in_stock'");
             const totalProductsResult = await db.query("SELECT COUNT(*) as count FROM products");
             await client.replyMessage({
@@ -893,12 +1228,12 @@ module.exports = function(db) {
         }
 
         // 溫層查詢
-        if (text.includes('冷藏')) { await replyTempQuery(client, event.replyToken, 'refrigerated', '❄️ 冷藏', baseUrl); return; }
-        if (text.includes('冷凍')) { await replyTempQuery(client, event.replyToken, 'frozen', '🧊 冷凍', baseUrl); return; }
-        if (text.includes('常溫')) { await replyTempQuery(client, event.replyToken, 'room_temp', '🌡️ 常溫', baseUrl); return; }
+        if (textLower.includes('冷藏')) { await replyTempQuery(client, event.replyToken, 'refrigerated', '❄️ 冷藏', baseUrl); return; }
+        if (textLower.includes('冷凍')) { await replyTempQuery(client, event.replyToken, 'frozen', '🧊 冷凍', baseUrl); return; }
+        if (textLower.includes('常溫')) { await replyTempQuery(client, event.replyToken, 'room_temp', '🌡️ 常溫', baseUrl); return; }
 
         // 統計報表
-        if (text.includes('報表') || text.includes('統計')) {
+        if (textLower.includes('報表') || textLower.includes('統計')) {
             const weekStatsResult = await db.query("SELECT COUNT(*) as total, SUM(CASE WHEN status = 'sold' THEN 1 ELSE 0 END) as sold, SUM(CASE WHEN status = 'removed' THEN 1 ELSE 0 END) as removed, SUM(CASE WHEN status = 'in_stock' THEN 1 ELSE 0 END) as in_stock FROM inventory WHERE created_at >= NOW() - INTERVAL '7 days'");
             const weekStats = weekStatsResult.rows[0];
             await client.replyMessage({
@@ -921,7 +1256,7 @@ module.exports = function(db) {
         }
 
         // 最近登記
-        if (text.includes('最近') || text.includes('剛剛') || text.includes('剛才')) {
+        if (textLower.includes('最近') || textLower.includes('剛剛') || textLower.includes('剛才')) {
             const recentItemsResult = await db.query("SELECT p.name, i.quantity, i.created_at FROM inventory i JOIN products p ON i.product_id = p.id ORDER BY i.created_at DESC LIMIT 5");
             const recentItems = recentItemsResult.rows;
             if (recentItems.length === 0) {
@@ -934,30 +1269,30 @@ module.exports = function(db) {
         }
 
         // 教學
-        if (text.includes('教學') || text.includes('怎麼用') || text.includes('教我')) {
+        if (textLower.includes('教學') || textLower.includes('怎麼用') || textLower.includes('教我')) {
             await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📚 潮欣小幫手使用教學\n\n【🎮 遊戲化功能】\n• 簽到/打卡 → 每日簽到獲得 XP\n• 抽/抽籤 → 抽幸運籤\n• 成就 → 查看你的戰績\n\n【登記商品】\n1. 打開網頁 → 快速商品登記\n2. 輸入條碼（或掃描）\n3. 填寫商品資訊、選效期\n4. 確認登記，完成！\n\n【查看庫存】\n打開網頁 → 庫存管理\n可以看到所有商品和效期\n\n【LINE 指令】\n• 效期 → 查效期狀況\n• 今天 → 今天到期的\n• 庫存 → 查庫存數量\n• 報表 → 本週統計\n\n👉 ' + baseUrl }] });
             return;
         }
 
         // 感謝回應
-        if (text.includes('謝謝') || text.includes('感謝') || text.includes('3q') || text.includes('thank')) {
+        if (textLower.includes('謝謝') || textLower.includes('感謝') || textLower.includes('3q') || textLower.includes('thank')) {
             const responses = ['不客氣！有需要隨時叫我～ 😊', '不會不會～這是我應該做的！💪', '能幫上忙太好了！🧡', '客氣啦～繼續加油喔！✨', '嘿嘿，小事一樁！😄'];
             await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: responses[Math.floor(Math.random() * responses.length)] }] });
             return;
         }
 
         // 鼓勵回應
-        if (text.includes('辛苦') || text.includes('累') || text.includes('煩')) {
+        if (textLower.includes('辛苦') || textLower.includes('累') || textLower.includes('煩')) {
             const responses = ['辛苦了！你真的很棒 💪\n休息一下，喝杯水吧～ 🥤', '加油加油！你已經做得很好了 ✨', '累了就休息一下，我會幫你盯著效期的！😊', '深呼吸～一切都會沒事的 🧡', '你很努力了！給自己一個擁抱吧～ 🤗'];
             await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: responses[Math.floor(Math.random() * responses.length)] }] });
             return;
         }
 
         // 加油回應
-        if (text.includes('加油')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '你也加油！我們一起努力 💪✨\n有我在，效期管理交給我！' }] }); return; }
+        if (textLower.includes('加油')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '你也加油！我們一起努力 💪✨\n有我在，效期管理交給我！' }] }); return; }
 
         // ========== 員工認領功能 ==========
-        if (text.includes('認領') || text.includes('綁定') || text === '我是誰') {
+        if (textLower.includes('認領') || textLower.includes('綁定') || textLower === '我是誰') {
             try {
                 // 檢查是否已經綁定
                 const boundResult = await db.query(
@@ -1049,7 +1384,7 @@ module.exports = function(db) {
         }
 
         // 班表查詢
-        if (text.includes('班表') || text.includes('排班') || text.includes('上班')) {
+        if (textLower.includes('班表') || textLower.includes('排班') || textLower.includes('上班')) {
             try {
                 // 查找員工
                 const empResult = await db.query('SELECT * FROM employees WHERE line_user_id = $1 AND is_active = true', [userId]);
@@ -1116,7 +1451,7 @@ module.exports = function(db) {
         }
 
         // 今天誰上班
-        if (text.includes('今天') && (text.includes('誰') || text.includes('上班') || text.includes('夥伴'))) {
+        if (textLower.includes('今天') && (textLower.includes('誰') || textLower.includes('上班') || textLower.includes('夥伴'))) {
             try {
                 const todayResult = await db.query(`
                     SELECT e.name, s.shift_type, st.name as shift_name, st.start_time, st.end_time
@@ -1160,10 +1495,10 @@ module.exports = function(db) {
         }
 
         // 隱藏彩蛋
-        if (text.includes('我愛你') || text.includes('愛你')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '啊...突然告白好害羞 😳\n我...我也很喜歡幫你管理效期啦！💕' }] }); return; }
-        if (text.includes('笨蛋') || text.includes('白痴')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '嗚嗚...人家只是個小幫手啦 😢\n不要罵我，我會更努力的！' }] }); return; }
-        if (text.includes('好可愛') || text.includes('可愛')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '欸嘿嘿～謝謝誇獎！😆\n你也很可愛喔！（？' }] }); return; }
-        if (text === '666' || text === '厲害' || text === '讚') { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '666！🎉\n你更厲害！繼續保持～ ✨' }] }); return; }
+        if (textLower.includes('我愛你') || textLower.includes('愛你')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '啊...突然告白好害羞 😳\n我...我也很喜歡幫你管理效期啦！💕' }] }); return; }
+        if (textLower.includes('笨蛋') || textLower.includes('白痴')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '嗚嗚...人家只是個小幫手啦 😢\n不要罵我，我會更努力的！' }] }); return; }
+        if (textLower.includes('好可愛') || textLower.includes('可愛')) { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '欸嘿嘿～謝謝誇獎！😆\n你也很可愛喔！（？' }] }); return; }
+        if (textLower === '666' || textLower === '厲害' || textLower === '讚') { await client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '666！🎉\n你更厲害！繼續保持～ ✨' }] }); return; }
 
         return null;
     }
