@@ -84,6 +84,8 @@
         .employee-actions button { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
         .btn-edit { background: #2196F3; color: white; }
         .btn-delete { background: #f44336; color: white; }
+        .btn-move { background: #9E9E9E; color: white; }
+        .btn-move:disabled { opacity: 0.4; cursor: not-allowed; }
         
         .add-form { background: #f9f9f9; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
         .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -226,8 +228,8 @@
                         <p>📞 ${emp.phone || '未填'} ${emp.line_user_id ? '✅ 已綁定LINE' : '⏳ 未綁定'}</p>
                     </div>
                     <div class="employee-actions">
-                        <button onclick="moveEmployee(${emp.id}, 'up')" style="background: #9E9E9E; color: white; padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer;" ${index === 0 ? 'disabled style="opacity:0.5"' : ''}>⬆️</button>
-                        <button onclick="moveEmployee(${emp.id}, 'down')" style="background: #9E9E9E; color: white; padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer;" ${index === employees.length - 1 ? 'disabled style="opacity:0.5"' : ''}>⬇️</button>
+                        <button onclick="moveEmployee(${emp.id}, 'up', ${index})" class="btn-move" ${index === 0 ? 'disabled' : ''}>⬆️</button>
+                        <button onclick="moveEmployee(${emp.id}, 'down', ${index})" class="btn-move" ${index === employees.length - 1 ? 'disabled' : ''}>⬇️</button>
                         <button class="btn-edit" onclick="editEmployee(${emp.id}, '${emp.name}', '${emp.phone || ''}', '${emp.role}')">✏️</button>
                         <button class="btn-delete" onclick="deleteEmployee(${emp.id}, '${emp.name}')">🗑️</button>
                     </div>
@@ -235,16 +237,29 @@
             `).join('');
         }
 
-        async function moveEmployee(id, direction) {
+        async function moveEmployee(id, direction, currentIndex) {
+            // 直接在前端交換位置
+            let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= employees.length) return;
+            
+            const targetId = employees[targetIndex].id;
+            
             try {
-                const res = await fetch(`/api/schedule/employees/${id}/move-${direction}`, { method: 'POST' });
+                const res = await fetch('/api/schedule/employees/swap', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id1: id, id2: targetId })
+                });
                 const data = await res.json();
                 if (data.success) {
-                    loadEmployees();
+                    await loadEmployees();
                     loadWeekSchedule();
+                } else {
+                    alert('移動失敗：' + (data.error || '未知錯誤'));
                 }
             } catch (error) {
                 console.error('移動失敗:', error);
+                alert('移動失敗');
             }
         }
 

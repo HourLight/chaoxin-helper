@@ -23,11 +23,64 @@ module.exports = function(db) {
 
     // ========== 員工管理 ==========
 
-    // 取得所有員工
+    // 員工排序 - 交換位置（必須放在 :id 路由之前！）
+    router.post('/employees/swap', async (req, res) => {
+        try {
+            const { id1, id2 } = req.body;
+            
+            if (!id1 || !id2) {
+                return res.status(400).json({ error: '缺少員工 ID' });
+            }
+
+            // 取得兩個員工
+            const emp1Result = await db.query('SELECT id, sort_order FROM employees WHERE id = $1', [id1]);
+            const emp2Result = await db.query('SELECT id, sort_order FROM employees WHERE id = $2', [id2]);
+            
+            if (emp1Result.rows.length === 0 || emp2Result.rows.length === 0) {
+                return res.status(404).json({ error: '找不到員工' });
+            }
+            
+            const emp1 = emp1Result.rows[0];
+            const emp2 = emp2Result.rows[0];
+            
+            // 交換 sort_order
+            await db.query('UPDATE employees SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [emp2.sort_order, emp1.id]);
+            await db.query('UPDATE employees SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [emp1.sort_order, emp2.id]);
+            
+            console.log(`✅ 員工排序交換: ${id1} <-> ${id2}`);
+            res.json({ success: true });
+        } catch (error) {
+            console.error('交換員工位置失敗:', error);
+            res.status(500).json({ error: '操作失敗' });
+        }
+    });
+
+    // 取得所有員工（並自動修復 sort_order）
     router.get('/employees', async (req, res) => {
         try {
+            // 先檢查是否有 sort_order 都是 0 的情況
+            const checkResult = await db.query(
+                'SELECT COUNT(*) as count FROM employees WHERE is_active = true AND sort_order = 0'
+            );
+            const zeroCount = parseInt(checkResult.rows[0].count);
+            
+            // 如果有多個 sort_order 是 0，自動修復
+            if (zeroCount > 1) {
+                console.log('🔧 修復員工排序...');
+                const allEmps = await db.query(
+                    'SELECT id FROM employees WHERE is_active = true ORDER BY role DESC, id ASC'
+                );
+                for (let i = 0; i < allEmps.rows.length; i++) {
+                    await db.query(
+                        'UPDATE employees SET sort_order = $1 WHERE id = $2',
+                        [i + 1, allEmps.rows[i].id]
+                    );
+                }
+                console.log('✅ 修復完成，共', allEmps.rows.length, '位員工');
+            }
+            
             const result = await db.query(
-                'SELECT * FROM employees WHERE is_active = true ORDER BY sort_order ASC, role DESC, id ASC'
+                'SELECT * FROM employees WHERE is_active = true ORDER BY sort_order ASC, id ASC'
             );
             res.json(result.rows);
         } catch (error) {
