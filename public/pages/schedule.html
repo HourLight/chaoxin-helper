@@ -32,8 +32,20 @@
         
         .schedule-table td.employee-name { 
             background: #f9f9f9; font-weight: bold; padding: 8px 5px; font-size: 13px;
-            position: sticky; left: 0; z-index: 1;
+            position: sticky; left: 0; z-index: 1; white-space: nowrap;
         }
+        
+        /* 排序按鈕 */
+        .sort-btn { 
+            cursor: pointer; 
+            font-size: 10px; 
+            opacity: 0.6; 
+            padding: 2px;
+            display: inline-block;
+            transition: opacity 0.2s;
+        }
+        .sort-btn:hover { opacity: 1; }
+        .sort-btn.disabled { opacity: 0.2; cursor: not-allowed; }
         
         /* 班別格子 */
         .shift-cell { padding: 5px; cursor: pointer; min-height: 50px; transition: all 0.2s; position: relative; }
@@ -331,14 +343,44 @@
                     return `<th class="day-header" style="${isToday ? 'background: var(--primary-orange);' : ''}">${date.getDate()}(${dayNames[date.getDay()]})</th>`;
                 }).join('');
 
-            document.getElementById('tableBody').innerHTML = data.data.map(row => {
+            document.getElementById('tableBody').innerHTML = data.data.map((row, index) => {
                 const emp = row.employee;
                 const cells = data.days.map(d => {
                     const key = `${emp.id}-${d}`, schedule = scheduleData[key] || {};
                     return `<td class="shift-cell ${schedule.notes ? 'has-note' : ''}" onclick="openShiftModal(${emp.id}, '${d}', '${emp.name}')" data-emp="${emp.id}" data-date="${d}">${renderShiftButton(schedule.shift_type || '', schedule.notes || '')}</td>`;
                 }).join('');
-                return `<tr><td class="employee-name">${emp.role === 'manager' ? '👑' : ''} ${emp.name}</td>${cells}</tr>`;
+                const upBtn = index > 0 ? `<span class="sort-btn" onclick="event.stopPropagation(); moveEmployeeInSchedule(${emp.id}, 'up', ${index})">⬆️</span>` : `<span class="sort-btn disabled">⬆️</span>`;
+                const downBtn = index < data.data.length - 1 ? `<span class="sort-btn" onclick="event.stopPropagation(); moveEmployeeInSchedule(${emp.id}, 'down', ${index})">⬇️</span>` : `<span class="sort-btn disabled">⬇️</span>`;
+                return `<tr><td class="employee-name">${upBtn}${downBtn} ${emp.role === 'manager' ? '👑' : ''} ${emp.name}</td>${cells}</tr>`;
             }).join('');
+        }
+
+        // 在班表頁面移動員工順序
+        async function moveEmployeeInSchedule(id, direction, currentIndex) {
+            const data = await fetch('/api/schedule/schedules/week').then(r => r.json());
+            const employees = data.data.map(r => r.employee);
+            
+            let targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= employees.length) return;
+            
+            const targetId = employees[targetIndex].id;
+            
+            try {
+                const res = await fetch('/api/schedule/employees/swap', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id1: id, id2: targetId })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    loadWeekSchedule();
+                    loadEmployees();
+                } else {
+                    alert('移動失敗：' + (result.error || '未知錯誤'));
+                }
+            } catch (error) {
+                console.error('移動失敗:', error);
+            }
         }
 
         function renderShiftButton(shift, note) {

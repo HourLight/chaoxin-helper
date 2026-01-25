@@ -32,9 +32,13 @@ module.exports = function(db) {
                 return res.status(400).json({ error: '缺少員工 ID' });
             }
 
+            // 確保是整數
+            const empId1 = parseInt(id1);
+            const empId2 = parseInt(id2);
+
             // 取得兩個員工
-            const emp1Result = await db.query('SELECT id, sort_order FROM employees WHERE id = $1', [id1]);
-            const emp2Result = await db.query('SELECT id, sort_order FROM employees WHERE id = $2', [id2]);
+            const emp1Result = await db.query('SELECT id, sort_order FROM employees WHERE id = $1', [empId1]);
+            const emp2Result = await db.query('SELECT id, sort_order FROM employees WHERE id = $1', [empId2]);
             
             if (emp1Result.rows.length === 0 || emp2Result.rows.length === 0) {
                 return res.status(404).json({ error: '找不到員工' });
@@ -43,11 +47,15 @@ module.exports = function(db) {
             const emp1 = emp1Result.rows[0];
             const emp2 = emp2Result.rows[0];
             
-            // 交換 sort_order
-            await db.query('UPDATE employees SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [emp2.sort_order, emp1.id]);
-            await db.query('UPDATE employees SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [emp1.sort_order, emp2.id]);
+            // 確保 sort_order 是數字
+            const order1 = parseInt(emp1.sort_order) || 0;
+            const order2 = parseInt(emp2.sort_order) || 0;
             
-            console.log(`✅ 員工排序交換: ${id1} <-> ${id2}`);
+            // 交換 sort_order
+            await db.query('UPDATE employees SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [order2, empId1]);
+            await db.query('UPDATE employees SET sort_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [order1, empId2]);
+            
+            console.log(`✅ 員工排序交換: ${empId1} (order:${order2}) <-> ${empId2} (order:${order1})`);
             res.json({ success: true });
         } catch (error) {
             console.error('交換員工位置失敗:', error);
