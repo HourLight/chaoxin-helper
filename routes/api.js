@@ -87,7 +87,7 @@ module.exports = function(db) {
         }
     });
 
-    // 取得即將到期商品列表
+    // 取得即將到期商品列表（排除已過期）
     router.get('/expiring', async (req, res) => {
         try {
             const hours = req.query.hours || 24;
@@ -98,6 +98,7 @@ module.exports = function(db) {
                 JOIN products p ON i.product_id = p.id
                 WHERE i.status = 'in_stock'
                 AND i.expiry_date <= NOW() + INTERVAL '1 hour' * $1
+                AND i.expiry_date > NOW()
                 ORDER BY i.expiry_date ASC
             `, [hours]);
             
