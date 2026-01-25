@@ -28,7 +28,11 @@
         .game-section h2.orange { color: #FF6B35; }
         .game-section h2.green { color: #1DB446; }
         .game-section h2.gold { color: #F39C12; }
-        
+        .game-section h3 {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            margin: 16px 0 10px 0;
+        }
         .game-section p {
             font-size: 0.9rem;
             color: var(--text-secondary);
@@ -37,14 +41,14 @@
         }
         
         /* 心理學小知識框 */
-        .psychology-box {
+        .philosophy-box {
             background: linear-gradient(135deg, #E8F5E9, #F1F8E9);
             border-radius: var(--radius-md);
             padding: 16px;
             margin: 16px 0;
             border-left: 4px solid #4CAF50;
         }
-        .psychology-box h4 {
+        .philosophy-box h4 {
             color: #2E7D32;
             font-size: 0.9rem;
             margin-bottom: 8px;
@@ -52,7 +56,7 @@
             align-items: center;
             gap: 6px;
         }
-        .psychology-box p {
+        .philosophy-box p {
             color: #33691E;
             font-size: 0.85rem;
             margin: 0;
@@ -69,7 +73,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px;
+            padding: 14px;
             border-radius: var(--radius-md);
         }
         .rarity-card.ssr {
@@ -83,10 +87,6 @@
         .rarity-card.r {
             background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
             border: 2px solid #2196F3;
-        }
-        .rarity-card.quest {
-            background: linear-gradient(135deg, #FBE9E7, #FFCCBC);
-            border: 2px solid #FF5722;
         }
         .rarity-card .emoji {
             font-size: 1.8rem;
@@ -103,10 +103,10 @@
             font-size: 0.8rem;
             color: var(--text-hint);
         }
-        .rarity-card .rate {
+        .rarity-card .count {
             font-size: 0.75rem;
             background: rgba(0,0,0,0.1);
-            padding: 4px 8px;
+            padding: 4px 10px;
             border-radius: 12px;
         }
         
@@ -246,69 +246,195 @@
             margin: 0;
             line-height: 1.7;
         }
-        /* 小幫手對話框 */
-        .mascot-welcome {
+
+        /* 籤卡系列 */
+        .series-box {
             display: flex;
-            align-items: flex-start;
-            gap: 16px;
-            background: linear-gradient(135deg, #F3E5F5, #E1BEE7);
-            padding: 20px;
-            border-radius: var(--radius-lg);
-            margin-bottom: 16px;
-            border: 2px solid #CE93D8;
+            gap: 12px;
+            margin: 16px 0;
         }
-        .mascot-welcome img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            flex-shrink: 0;
-            border: 3px solid #9B59B6;
-        }
-        .mascot-welcome .speech {
+        .series-item {
             flex: 1;
+            background: var(--gray-50);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            text-align: center;
         }
-        .mascot-welcome .speech h3 {
-            font-size: 1rem;
-            color: #7B1FA2;
-            margin-bottom: 8px;
+        .series-item .icon {
+            font-size: 1.5rem;
+            margin-bottom: 6px;
         }
-        .mascot-welcome .speech p {
+        .series-item .name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .series-item .desc {
+            font-size: 0.75rem;
+            color: var(--text-hint);
+        }
+
+        /* 操作方式 */
+        .method-list {
+            margin: 12px 0;
+        }
+        .method-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background: var(--gray-50);
+            border-radius: var(--radius-md);
+            margin-bottom: 10px;
+        }
+        .method-item .step {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #9B59B6, #8E44AD);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .method-item .content h4 {
             font-size: 0.9rem;
-            color: #4A148C;
-            line-height: 1.7;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .method-item .content p {
+            font-size: 0.8rem;
+            color: var(--text-hint);
             margin: 0;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .nav-buttons .btn {
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
     <header class="header game-header">
+        <div class="header-stripes">
+            <div class="stripe-orange"></div>
+            <div class="stripe-green"></div>
+            <div class="stripe-red"></div>
+        </div>
         <div class="header-content">
+            <span class="header-back" onclick="location.href='/'">←</span>
             <h1>🎮 遊戲說明</h1>
-            <p class="subtitle">工作也能很有趣！</p>
+            <p class="subtitle">讓工作多一點小確幸 ✨</p>
         </div>
     </header>
 
     <div class="container">
-        <!-- 小幫手歡迎 -->
-        <div class="mascot-welcome">
-            <img src="/images/mascot.png" alt="潮欣小幫手">
-            <div class="speech">
-                <h3>✨ 歡迎來到加油打氣站！</h3>
+        <!-- 開場介紹 -->
+        <div class="game-section">
+            <h2 class="orange">🎯 遊戲功能是什麼？</h2>
+            <p>
+                潮欣小幫手不只是效期管理工具，還有療癒紓壓的遊戲功能！
+            </p>
+            <p>
+                完成工作可以獲得經驗值、升級解鎖稱號、抽籤獲得正能量語錄... 這些都是為了讓你在忙碌的工作中，有一些小小的樂趣和成就感 🧡
+            </p>
+            
+            <div class="philosophy-box">
+                <h4>💚 設計理念</h4>
                 <p>
-                    我們相信，<strong>每一份努力都值得被看見</strong>！
-                    <br><br>
-                    效期管理是重要的工作，但不想讓它變成枯燥的例行公事。所以設計了這些小遊戲，讓你在工作中也能獲得<strong>成就感</strong>和<strong>小確幸</strong>～ 🎮
+                    遊戲功能是「加分」不是「扣分」。不想玩的時候不用勉強，沒有簽到也不會怎樣。我們只是想讓你知道：<strong>你每天的努力，都值得被看見和肯定。</strong>
                 </p>
             </div>
         </div>
 
-        <!-- 正向心理學 -->
+        <!-- 馥能量抽籤 -->
         <div class="game-section">
-            <div class="psychology-box">
-                <h4>🧠 正向心理學小知識</h4>
+            <h2 class="purple">🎴 馥能量抽籤</h2>
+            <p>
+                這是結合芳療能量概念設計的籤卡系統，共有 <strong>130 張</strong>精選籤卡，每一張都是為便利商店夥伴量身打造的療癒語錄！
+            </p>
+            
+            <h3>📚 籤卡系列</h3>
+            <div class="series-box">
+                <div class="series-item">
+                    <div class="icon">🎯</div>
+                    <div class="name">A 系列</div>
+                    <div class="desc">職涯外掛篇<br>22 張</div>
+                </div>
+                <div class="series-item">
+                    <div class="icon">🌿</div>
+                    <div class="name">0 系列</div>
+                    <div class="desc">身心補給篇<br>108 張</div>
+                </div>
+            </div>
+
+            <h3>🌟 稀有度說明</h3>
+            <div class="rarity-grid">
+                <div class="rarity-card ssr">
+                    <span class="emoji">🌟</span>
+                    <div class="info">
+                        <strong>SSR 大吉</strong>
+                        <span>超級好運！歐皇附體～</span>
+                    </div>
+                    <span class="count">16 張</span>
+                </div>
+                <div class="rarity-card sr">
+                    <span class="emoji">✨</span>
+                    <div class="info">
+                        <strong>SR 中吉</strong>
+                        <span>順風順水，今天會很順！</span>
+                    </div>
+                    <span class="count">62 張</span>
+                </div>
+                <div class="rarity-card r">
+                    <span class="emoji">💫</span>
+                    <div class="info">
+                        <strong>R 小吉</strong>
+                        <span>平平安安，平凡是福～</span>
+                    </div>
+                    <span class="count">52 張</span>
+                </div>
+            </div>
+
+            <h3>📝 怎麼抽籤？</h3>
+            <div class="method-list">
+                <div class="method-item">
+                    <span class="step">1</span>
+                    <div class="content">
+                        <h4>網頁版</h4>
+                        <p>首頁點「🎴 馥能量抽籤」→ 點大按鈕抽籤</p>
+                    </div>
+                </div>
+                <div class="method-item">
+                    <span class="step">2</span>
+                    <div class="content">
+                        <h4>LINE Bot</h4>
+                        <p>私訊輸入「抽籤」或「抽」即可</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="philosophy-box">
+                <h4>🌿 馥靈之鑰理念</h4>
                 <p>
-                    研究發現，當我們完成一件事後得到<strong>立即的正向回饋</strong>，大腦會產生愉悅感，也更有動力繼續做下去！這就是為什麼「小小的成就感」能帶來「大大的力量」～
+                    每一張籤都是平等的「高我訊息」。<br><br>
+                    抽到什麼就是當下最需要的能量，不論稀有度高低，每張籤都有它的意義。這是宇宙給你的禮物，不是人為操控的機率遊戲 ✨
+                </p>
+            </div>
+
+            <div class="note-box">
+                <h4>💡 小提示</h4>
+                <p>
+                    抽到的籤會收藏在你的紀錄中，可以回顧過去抽到的籤卡。試試挑戰收集全部 130 張吧！
                 </p>
             </div>
         </div>
@@ -317,119 +443,49 @@
         <div class="game-section">
             <h2 class="orange">📝 每日簽到</h2>
             <p>
-                每天來打個卡，讓我知道你在！簽到可以累積經驗值，連續簽到還有額外獎勵喔～
+                每天在 LINE 輸入「<strong>簽到</strong>」或「<strong>打卡</strong>」，就能獲得經驗值和連續簽到獎勵！
             </p>
             
-            <p><strong>怎麼簽到？</strong></p>
-            <p>👉 在 LINE 輸入「<strong>簽到</strong>」或「<strong>打卡</strong>」就可以了！</p>
-            
+            <h3>🎁 簽到獎勵</h3>
             <div class="xp-list">
                 <div class="xp-item">
                     <span class="action">📝 每日簽到</span>
-                    <span class="points">+5 XP</span>
+                    <span class="points">+10 XP</span>
                 </div>
                 <div class="xp-item">
                     <span class="action">🔥 連續 7 天</span>
-                    <span class="points">+100 XP</span>
+                    <span class="points">+50 XP 額外獎勵</span>
                 </div>
                 <div class="xp-item">
                     <span class="action">🔥 連續 14 天</span>
-                    <span class="points">+200 XP</span>
+                    <span class="points">+100 XP 額外獎勵</span>
                 </div>
                 <div class="xp-item">
                     <span class="action">🔥 連續 30 天</span>
-                    <span class="points">+500 XP</span>
+                    <span class="points">+200 XP 額外獎勵</span>
                 </div>
-            </div>
-
-            <div class="psychology-box">
-                <h4>💪 習慣的力量</h4>
-                <p>
-                    心理學家說，持續做同一件事會慢慢變成習慣！簽到不只是打卡，更是在培養你的<strong>自律能力</strong>。每一天的堅持，都是對自己的肯定 ✨
-                </p>
             </div>
 
             <div class="note-box">
                 <h4>😌 溫馨提醒</h4>
                 <p>
-                    中斷簽到不會怎樣的！休假、忘記都沒關係，這不是要給你壓力，只是想給你一個小小的儀式感～
-                </p>
-            </div>
-        </div>
-
-        <!-- 抽幸運籤 -->
-        <div class="game-section">
-            <h2 class="purple">🎴 抽幸運籤</h2>
-            <p>
-                每天抽一張籤，看看今日運勢和加油小語！全部 130 張籤，每張都是為便利商店夥伴特別設計的喔～
-            </p>
-            
-            <p><strong>怎麼抽籤？</strong></p>
-            <p>👉 在 LINE 輸入「<strong>抽籤</strong>」或「<strong>抽</strong>」就可以了！</p>
-
-            <p style="margin-top: 16px;"><strong>稀有度說明：</strong></p>
-            <div class="rarity-grid">
-                <div class="rarity-card ssr">
-                    <span class="emoji">🌟</span>
-                    <div class="info">
-                        <strong>SSR 大吉</strong>
-                        <span>歐皇附體！超級好運日～</span>
-                    </div>
-                    <span class="rate">3%</span>
-                </div>
-                <div class="rarity-card sr">
-                    <span class="emoji">✨</span>
-                    <div class="info">
-                        <strong>SR 中吉</strong>
-                        <span>順風順水，今天會很順！</span>
-                    </div>
-                    <span class="rate">12%</span>
-                </div>
-                <div class="rarity-card r">
-                    <span class="emoji">💫</span>
-                    <div class="info">
-                        <strong>R 小吉</strong>
-                        <span>平平安安，平凡是福～</span>
-                    </div>
-                    <span class="rate">25%</span>
-                </div>
-                <div class="rarity-card quest">
-                    <span class="emoji">⚔️</span>
-                    <div class="info">
-                        <strong>Quest 挑戰</strong>
-                        <span>練等副本！過關經驗加倍～</span>
-                    </div>
-                    <span class="rate">60%</span>
-                </div>
-            </div>
-
-            <div class="psychology-box">
-                <h4>🎁 驚喜的魔力</h4>
-                <p>
-                    不確定會抽到什麼，這種「期待感」會讓心情更雀躍！就像拆禮物一樣，<strong>過程本身就是快樂</strong>～ 而且別擔心，連續 10 次沒抽到 SR，第 11 次保底喔！
-                </p>
-            </div>
-
-            <div class="note-box">
-                <h4>🃏 關於「Quest 挑戰」</h4>
-                <p>
-                    抽到挑戰籤不是壞運氣喔！它代表今天是「練功日」，遇到的困難都是讓你成長的養分。換個角度想，每個挑戰都是進步的機會 💪
+                    中斷簽到不會怎樣的！休假、忘記都沒關係，這不是要給你壓力，只是想給你一個小小的儀式感，讓每天的開始多一點期待～
                 </p>
             </div>
         </div>
 
         <!-- 經驗值與等級 -->
         <div class="game-section">
-            <h2 class="green">⭐ 經驗值（XP）與等級</h2>
+            <h2 class="green">⭐ 經驗值與等級</h2>
             <p>
-                完成各種行為都能獲得經驗值，累積到一定程度就會升級！升級代表你越來越厲害囉～
+                完成各種行為都能獲得經驗值（XP），累積到一定程度就會升級，解鎖新的稱號！
             </p>
 
-            <p><strong>獲得 XP 的方式：</strong></p>
+            <h3>💎 獲得 XP 的方式</h3>
             <div class="xp-list">
                 <div class="xp-item">
                     <span class="action">📝 每日簽到</span>
-                    <span class="points">+5 XP</span>
+                    <span class="points">+10 XP</span>
                 </div>
                 <div class="xp-item">
                     <span class="action">📦 登記商品</span>
@@ -437,19 +493,15 @@
                 </div>
                 <div class="xp-item">
                     <span class="action">✅ 下架處理</span>
-                    <span class="points">+30 XP</span>
+                    <span class="points">+15 XP</span>
                 </div>
                 <div class="xp-item">
                     <span class="action">🎴 抽籤</span>
                     <span class="points">+5 XP</span>
                 </div>
-                <div class="xp-item">
-                    <span class="action">🏅 獲得徽章</span>
-                    <span class="points">+50 XP</span>
-                </div>
             </div>
 
-            <p style="margin-top: 16px;"><strong>等級稱號：</strong></p>
+            <h3>🏅 等級稱號</h3>
             <div class="level-list">
                 <div class="level-item">
                     <div class="level-badge lv1">🌱</div>
@@ -488,10 +540,10 @@
                 </div>
             </div>
 
-            <div class="psychology-box">
+            <div class="philosophy-box">
                 <h4>🎯 進步的可視化</h4>
                 <p>
-                    看著經驗值增加、等級提升，就像玩遊戲一樣有成就感！這種「進步可視化」能讓你更清楚看見自己的成長，每一點 XP 都是你努力的證明 ✨
+                    看著經驗值增加、等級提升，就像玩遊戲一樣有成就感！每一點 XP 都是你努力的證明，讓你更清楚看見自己的成長 ✨
                 </p>
             </div>
         </div>
@@ -503,7 +555,7 @@
                 完成特定條件就能解鎖徽章，代表你達成的里程碑！每個徽章都是你努力的證明 ✨
             </p>
 
-            <p><strong>部分徽章一覽：</strong></p>
+            <h3>🎖️ 部分徽章一覽</h3>
             <div class="badge-grid">
                 <div class="badge-card">
                     <span class="emoji">🌱</span>
@@ -534,7 +586,7 @@
             <div class="note-box">
                 <h4>🤫 隱藏徽章</h4>
                 <p>
-                    有些徽章是隱藏的，要靠你自己發現條件喔！提示：試試在不同時段簽到... 👀
+                    有些徽章是隱藏的，要靠你自己發現解鎖條件喔！提示：試試在不同時段簽到... 👀
                 </p>
             </div>
         </div>
@@ -552,17 +604,22 @@
             </p>
         </div>
 
-        <!-- 返回按鈕 -->
-        <div style="display: flex; gap: 12px; margin-top: 20px;">
-            <a href="/pages/help.html" class="btn btn-secondary" style="flex: 1; text-align: center;">
+        <!-- 導航按鈕 -->
+        <div class="nav-buttons">
+            <a href="/pages/help.html" class="btn btn-secondary">
                 📖 使用說明
             </a>
-            <a href="/" class="btn btn-primary" style="flex: 1; text-align: center;">
+            <a href="/" class="btn btn-primary">
                 🏠 回首頁
             </a>
         </div>
 
-        <div style="height: 40px;"></div>
+        <!-- 版權聲明 -->
+        <div class="copyright">
+            <p class="copyright-brand">潮欣小幫手</p>
+            <p>便利商店生鮮品效期管理系統</p>
+            <p class="copyright-notice">© 2026 王逸君 版權所有</p>
+        </div>
     </div>
 
     <script src="/js/app.js"></script>

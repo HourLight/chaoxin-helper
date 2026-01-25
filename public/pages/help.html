@@ -22,6 +22,18 @@
             align-items: center;
             gap: 8px;
         }
+        .help-section h3 {
+            font-size: 1rem;
+            color: var(--seven-green);
+            margin: 16px 0 10px 0;
+            padding-top: 12px;
+            border-top: 1px dashed #eee;
+        }
+        .help-section h3:first-of-type {
+            border-top: none;
+            padding-top: 0;
+            margin-top: 12px;
+        }
         .help-section p {
             font-size: 0.9rem;
             color: var(--text-secondary);
@@ -31,11 +43,12 @@
         .step-list {
             list-style: none;
             padding: 0;
+            margin: 0;
         }
         .step-list li {
             display: flex;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             padding: 12px;
             background: var(--gray-50);
             border-radius: var(--radius-md);
@@ -62,6 +75,7 @@
             font-size: 0.85rem;
             color: var(--text-hint);
             margin: 0;
+            line-height: 1.6;
         }
         .tip-box {
             background: linear-gradient(135deg, #FFF8E1, #FFFDE7);
@@ -89,24 +103,26 @@
             font-size: 0.8rem;
             font-weight: 600;
         }
-        .mascot-bubble {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            background: linear-gradient(135deg, #E8F5E9, #F1F8E9);
-            padding: 16px;
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 12px 0;
+        }
+        .feature-item {
+            background: var(--gray-50);
+            padding: 12px;
             border-radius: var(--radius-md);
-            margin-top: 16px;
+            text-align: center;
         }
-        .mascot-bubble .icon {
-            font-size: 2rem;
+        .feature-item .icon {
+            font-size: 1.5rem;
+            margin-bottom: 6px;
         }
-        .mascot-bubble .text {
-            font-size: 0.9rem;
-            color: #2E7D32;
-            line-height: 1.7;
+        .feature-item .label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
         }
-        /* 小幫手對話框 */
         .mascot-welcome {
             display: flex;
             align-items: flex-start;
@@ -118,8 +134,8 @@
             border: 2px solid #FFE082;
         }
         .mascot-welcome img {
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
             object-fit: cover;
             flex-shrink: 0;
@@ -131,13 +147,77 @@
         .mascot-welcome .speech h3 {
             font-size: 1rem;
             color: #F57C00;
-            margin-bottom: 8px;
+            margin: 0 0 8px 0;
+            padding: 0;
+            border: none;
         }
         .mascot-welcome .speech p {
             font-size: 0.9rem;
             color: #5D4037;
             line-height: 1.7;
             margin: 0;
+        }
+        .quick-summary {
+            background: linear-gradient(135deg, #E3F2FD, #E1F5FE);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .quick-summary h3 {
+            font-size: 1rem;
+            color: #1565C0;
+            margin: 0 0 12px 0;
+            text-align: center;
+        }
+        .quick-steps {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .quick-step {
+            text-align: center;
+        }
+        .quick-step .emoji {
+            font-size: 2rem;
+            margin-bottom: 4px;
+        }
+        .quick-step .text {
+            font-size: 0.75rem;
+            color: #1565C0;
+            font-weight: 600;
+        }
+        .arrow {
+            font-size: 1.2rem;
+            color: #90CAF9;
+        }
+        .rarity-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 0.85rem;
+        }
+        .rarity-table th, .rarity-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        .rarity-table th {
+            background: var(--gray-50);
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .rarity-ssr { color: #FFD700; }
+        .rarity-sr { color: #9B59B6; }
+        .rarity-r { color: #3498DB; }
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .nav-buttons .btn {
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
         }
     </style>
 </head>
@@ -149,172 +229,373 @@
             <div class="stripe-red"></div>
         </div>
         <div class="header-content">
+            <span class="header-back" onclick="location.href='/'">←</span>
             <h1>📖 使用說明</h1>
-            <p class="subtitle">三分鐘上手，效期管理 So Easy！</p>
+            <p class="subtitle">三分鐘上手，效期管理變簡單！</p>
         </div>
     </header>
 
     <div class="container">
         <!-- 小幫手歡迎 -->
         <div class="mascot-welcome">
-            <img src="/images/mascot.png" alt="潮欣小幫手">
+            <img src="/images/mascot.png" alt="潮欣小幫手" onerror="this.style.display='none'">
             <div class="speech">
                 <h3>👋 嗨～我是潮欣小幫手！</h3>
                 <p>
-                    我是你的效期管理小夥伴！不管是進貨登記、效期追蹤還是庫存管理，通通交給我就對啦～
+                    我會幫你輕鬆管理商品效期，不用再怕漏掉快過期的商品啦！
                     <br><br>
-                    別擔心不會用，這份說明超簡單的，跟著做就會囉！💪
+                    跟著下面的說明做，保證三分鐘就會用 💪
                 </p>
+            </div>
+        </div>
+
+        <!-- 快速摘要 -->
+        <div class="quick-summary">
+            <h3>⚡ 商品登記只要 3 步驟</h3>
+            <div class="quick-steps">
+                <div class="quick-step">
+                    <div class="emoji">📸</div>
+                    <div class="text">拍照</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="quick-step">
+                    <div class="emoji">👀</div>
+                    <div class="text">確認</div>
+                </div>
+                <div class="arrow">→</div>
+                <div class="quick-step">
+                    <div class="emoji">✅</div>
+                    <div class="text">登記</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能總覽 -->
+        <div class="help-section">
+            <h2>🎯 系統功能總覽</h2>
+            <p>潮欣小幫手有這些功能，點擊首頁的卡片就能使用：</p>
+            
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="icon">📸</div>
+                    <div class="label">智慧商品登記<br><small>AI 拍照辨識</small></div>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">📋</div>
+                    <div class="label">庫存管理<br><small>效期追蹤下架</small></div>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">🎴</div>
+                    <div class="label">馥能量抽籤<br><small>130張療癒籤卡</small></div>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">📊</div>
+                    <div class="label">營運報表<br><small>庫存統計分析</small></div>
+                </div>
             </div>
         </div>
 
         <!-- 功能一：智慧商品登記 -->
         <div class="help-section">
-            <h2>📸 智慧商品登記（超推薦！）</h2>
-            <p>這是我最厲害的功能！拍張照片，AI 就會自動幫你讀取條碼、商品名稱和效期，不用手打超省時～</p>
+            <h2>📸 智慧商品登記</h2>
+            <p>這是最推薦的登記方式！拍一張照片，AI 就會自動辨識商品條碼、名稱和效期日期。</p>
             
+            <h3>📝 操作步驟</h3>
             <ul class="step-list">
                 <li>
                     <span class="step-number">1</span>
                     <div class="step-content">
-                        <h4>點「智慧商品登記」</h4>
-                        <p>首頁第一個就是，很好找！</p>
+                        <h4>進入登記頁面</h4>
+                        <p>首頁點擊「📸 智慧商品登記」卡片</p>
                     </div>
                 </li>
                 <li>
                     <span class="step-number">2</span>
                     <div class="step-content">
-                        <h4>拍一張照片</h4>
-                        <p>把條碼、商品名、效期都拍進去最好喔～</p>
+                        <h4>拍攝商品照片</h4>
+                        <p>對準商品包裝拍照，讓條碼、品名、效期都入鏡</p>
                     </div>
                 </li>
                 <li>
                     <span class="step-number">3</span>
                     <div class="step-content">
-                        <h4>確認資訊</h4>
-                        <p>AI 辨識完會顯示結果，看一下對不對</p>
+                        <h4>等待 AI 辨識</h4>
+                        <p>系統會自動分析照片，約需 3-5 秒</p>
                     </div>
                 </li>
                 <li>
                     <span class="step-number">4</span>
                     <div class="step-content">
-                        <h4>按確認登記</h4>
-                        <p>沒問題就送出，搞定！🎉</p>
+                        <h4>確認辨識結果</h4>
+                        <p>檢查條碼、名稱、效期是否正確，有錯就點擊修改</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">5</span>
+                    <div class="step-content">
+                        <h4>確認登記</h4>
+                        <p>點「✅ 確認登記」按鈕，完成！可繼續登記下一個</p>
                     </div>
                 </li>
             </ul>
 
+            <h3>💡 拍照小秘訣</h3>
             <div class="tip-box">
-                <p>💡 <strong>小秘訣：</strong>光線充足、照片清楚，辨識更準確喔！如果 AI 沒辨識到，手動輸入也很快的～</p>
+                <p>
+                    ✓ 光線要充足，避免陰暗或反光<br>
+                    ✓ 條碼要清晰可見，不要模糊<br>
+                    ✓ 效期日期要拍進畫面裡<br>
+                    ✓ 可以稍微傾斜避免反光
+                </p>
             </div>
+
+            <h3>⚠️ 辨識結果說明</h3>
+            <p>每個欄位旁邊會顯示「信心度」：</p>
+            <ul class="step-list">
+                <li>
+                    <span class="step-number" style="background: #22C55E;">✓</span>
+                    <div class="step-content">
+                        <h4>✅ 高信心度（綠色）</h4>
+                        <p>AI 很確定結果正確，通常不需要修改</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number" style="background: #F59E0B;">!</span>
+                    <div class="step-content">
+                        <h4>⚠️ 中信心度（黃色）</h4>
+                        <p>建議看一下對不對，可能需要微調</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number" style="background: #EF4444;">?</span>
+                    <div class="step-content">
+                        <h4>❓ 低信心度（紅色）</h4>
+                        <p>請務必檢查並手動修正</p>
+                    </div>
+                </li>
+            </ul>
         </div>
 
-        <!-- 功能二：快速商品登記 -->
+        <!-- 功能二：庫存管理 -->
         <div class="help-section">
-            <h2>📱 快速商品登記</h2>
-            <p>如果商品之前登記過，用條碼掃一下就能快速登記，系統會自動帶入商品資料！</p>
+            <h2>📋 庫存管理</h2>
+            <p>查看所有已登記的商品，管理效期、標記下架。快到期的商品會自動排在最前面！</p>
             
+            <h3>📝 操作步驟</h3>
             <ul class="step-list">
                 <li>
                     <span class="step-number">1</span>
                     <div class="step-content">
-                        <h4>掃描或輸入條碼</h4>
-                        <p>用掃描器或手動輸入都可以</p>
+                        <h4>進入庫存頁面</h4>
+                        <p>首頁點擊「📋 看看有什麼貨？」</p>
                     </div>
                 </li>
                 <li>
                     <span class="step-number">2</span>
                     <div class="step-content">
-                        <h4>選擇效期</h4>
-                        <p>點日期選擇器，選商品的到期日</p>
+                        <h4>篩選溫層（可選）</h4>
+                        <p>點擊「❄️冷藏」「🧊冷凍」「🌡️常溫」篩選</p>
                     </div>
                 </li>
                 <li>
                     <span class="step-number">3</span>
                     <div class="step-content">
-                        <h4>填數量，送出</h4>
-                        <p>預設是 1，可以改成實際數量</p>
+                        <h4>查看商品資訊</h4>
+                        <p>每張卡片顯示：名稱、效期、剩餘天數、數量</p>
                     </div>
                 </li>
             </ul>
-        </div>
 
-        <!-- 功能三：庫存管理 -->
-        <div class="help-section">
-            <h2>📋 庫存管理</h2>
-            <p>這裡可以看到所有在庫的商品，還有效期倒數！快到期的會排在最上面，超一目了然～</p>
-            
+            <h3>🏷️ 效期顏色說明</h3>
             <ul class="step-list">
                 <li>
-                    <span class="step-number">✓</span>
+                    <span class="step-number" style="background: #22C55E;">3+</span>
                     <div class="step-content">
-                        <h4>商品售出了？</h4>
-                        <p>點「已售出」按鈕，從庫存移除</p>
+                        <h4>🟢 綠色 — 安全</h4>
+                        <p>還有 3 天以上，暫時不用擔心</p>
                     </div>
                 </li>
                 <li>
-                    <span class="step-number">✓</span>
+                    <span class="step-number" style="background: #F59E0B;">2</span>
                     <div class="step-content">
-                        <h4>商品要報廢？</h4>
-                        <p>點「已報廢」按鈕，會記錄下來</p>
+                        <h4>🟡 黃色 — 注意</h4>
+                        <p>2-3 天內到期，準備處理</p>
                     </div>
                 </li>
                 <li>
-                    <span class="step-number">✓</span>
+                    <span class="step-number" style="background: #EF4444;">!</span>
                     <div class="step-content">
-                        <h4>要提醒大家？</h4>
-                        <p>點「提醒下架」會發 LINE 通知到群組</p>
+                        <h4>🔴 紅色 — 緊急</h4>
+                        <p>24 小時內到期或已過期，立即處理！</p>
                     </div>
                 </li>
             </ul>
+
+            <h3>✅ 下架處理</h3>
+            <p>每個商品卡片下方有兩個按鈕：</p>
+            <ul class="step-list">
+                <li>
+                    <span class="step-number" style="background: #22C55E;">✓</span>
+                    <div class="step-content">
+                        <h4>「已售出」按鈕</h4>
+                        <p>商品賣掉了，點擊後從庫存移除</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number" style="background: #EF4444;">✗</span>
+                    <div class="step-content">
+                        <h4>「已報廢」按鈕</h4>
+                        <p>商品要丟掉，點擊後記錄並移除</p>
+                    </div>
+                </li>
+            </ul>
+
+            <h3>🔔 發送 LINE 提醒</h3>
+            <p>點擊頁面右上角「🔔 提醒下架」按鈕，會把即將到期的商品清單發送到 LINE 群組，通知所有同事！</p>
+        </div>
+
+        <!-- 功能三：馥能量抽籤 -->
+        <div class="help-section">
+            <h2>🎴 馥能量抽籤</h2>
+            <p>工作累了嗎？來抽一張籤，讓療癒的能量語錄陪伴你！這是結合芳療概念設計的 130 張正能量籤卡。</p>
+            
+            <h3>📝 怎麼抽籤</h3>
+            <ul class="step-list">
+                <li>
+                    <span class="step-number">1</span>
+                    <div class="step-content">
+                        <h4>方法一：網頁版</h4>
+                        <p>首頁點擊「🎴 馥能量抽籤」→ 點大按鈕抽籤</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">2</span>
+                    <div class="step-content">
+                        <h4>方法二：LINE Bot</h4>
+                        <p>私訊 LINE Bot，輸入「抽籤」或「抽」</p>
+                    </div>
+                </li>
+            </ul>
+
+            <h3>🌟 籤卡稀有度</h3>
+            <table class="rarity-table">
+                <tr>
+                    <th>稀有度</th>
+                    <th>含義</th>
+                    <th>顏色</th>
+                </tr>
+                <tr>
+                    <td class="rarity-ssr">🌟 SSR</td>
+                    <td>大吉 — 超級好運！</td>
+                    <td>金色</td>
+                </tr>
+                <tr>
+                    <td class="rarity-sr">✨ SR</td>
+                    <td>中吉 — 順風順水</td>
+                    <td>紫色</td>
+                </tr>
+                <tr>
+                    <td class="rarity-r">💫 R</td>
+                    <td>小吉 — 平凡是福</td>
+                    <td>藍色</td>
+                </tr>
+            </table>
+
+            <div class="tip-box">
+                <p>
+                    🌿 <strong>設計理念：</strong>每一張籤都是平等的高我訊息，抽到什麼就是當下最需要的能量。不論稀有度高低，每張籤都有它的意義喔！
+                </p>
+            </div>
         </div>
 
         <!-- LINE Bot 使用 -->
         <div class="help-section">
             <h2>🤖 LINE Bot 小幫手</h2>
-            <p>把我加進 LINE 群組，就能用關鍵字跟我互動喔！不用開網頁也能查資料～</p>
+            <p>把 LINE Bot 加入群組，就能用關鍵字快速互動，不用開網頁也能操作！</p>
             
-            <p><strong>試試看這些關鍵字：</strong></p>
+            <h3>💬 關鍵字指令</h3>
             <div class="keyword-list">
+                <span class="keyword">選單</span>
                 <span class="keyword">簽到</span>
                 <span class="keyword">抽籤</span>
                 <span class="keyword">效期</span>
                 <span class="keyword">今天</span>
+                <span class="keyword">明天</span>
                 <span class="keyword">庫存</span>
-                <span class="keyword">選單</span>
+                <span class="keyword">成就</span>
             </div>
 
-            <div class="mascot-bubble">
-                <span class="icon">📸</span>
-                <div class="text">
-                    <strong>直接傳照片給我</strong>，我也會幫你辨識喔！拍完商品傳到群組，我就會自動分析～
-                </div>
-            </div>
+            <h3>📸 圖片辨識</h3>
+            <p>直接把商品照片傳給 LINE Bot，也會自動進行 AI 辨識，方便你快速登記！</p>
+
+            <h3>🎮 每日簽到</h3>
+            <p>每天輸入「簽到」可以獲得經驗值，累積升級成為效期達人！</p>
+        </div>
+
+        <!-- 常見問題 -->
+        <div class="help-section">
+            <h2>❓ 常見問題</h2>
+            
+            <ul class="step-list">
+                <li>
+                    <span class="step-number">Q</span>
+                    <div class="step-content">
+                        <h4>AI 辨識不準怎麼辦？</h4>
+                        <p>直接點擊欄位手動修改就好，不影響登記。下次拍照注意光線充足、畫面清晰。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">Q</span>
+                    <div class="step-content">
+                        <h4>同一商品有很多個怎麼登記？</h4>
+                        <p>辨識完成後，修改「數量」欄位填入實際數量即可。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">Q</span>
+                    <div class="step-content">
+                        <h4>登記錯了可以改嗎？</h4>
+                        <p>到「庫存管理」頁面，把錯誤的商品標記「已報廢」刪除，再重新登記正確的。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="step-number">Q</span>
+                    <div class="step-content">
+                        <h4>LINE Bot 沒回應？</h4>
+                        <p>等幾秒再試一次。如果還是沒反應，請確認是否已加入官方帳號。</p>
+                    </div>
+                </li>
+            </ul>
         </div>
 
         <!-- 溫馨提醒 -->
         <div class="help-section">
-            <h2>💚 溫馨小提醒</h2>
-            <p>效期管理不只是工作，更是守護顧客健康的重要任務！每一次認真檢查，都是在傳遞你的專業和用心 ✨</p>
-            <p>有任何問題隨時問我，我會一直在這裡陪著你～</p>
+            <h2>💚 給你的話</h2>
+            <p>效期管理是守護顧客健康的重要工作。每一次認真檢查，都是在傳遞你的專業和用心 ✨</p>
+            <p>工作累了記得抽張籤紓壓，有問題隨時問店長或看這份說明！</p>
             
-            <div style="text-align: center; margin-top: 20px;">
-                <p style="font-size: 1.5rem;">🧡</p>
-                <p style="font-size: 0.9rem; color: var(--text-hint);">你很棒，繼續加油！</p>
+            <div style="text-align: center; margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #FFF8E1, #E8F5E9); border-radius: 12px;">
+                <p style="font-size: 1.8rem; margin-bottom: 8px;">💪🧡✨</p>
+                <p style="font-size: 0.95rem; color: var(--text-secondary); margin: 0;">你很棒，繼續加油！</p>
             </div>
         </div>
 
-        <!-- 返回按鈕 -->
-        <div style="display: flex; gap: 12px; margin-top: 20px;">
-            <a href="/pages/game-guide.html" class="btn btn-secondary" style="flex: 1; text-align: center;">
+        <!-- 導航按鈕 -->
+        <div class="nav-buttons">
+            <a href="/pages/game-guide.html" class="btn btn-secondary">
                 🎮 遊戲說明
             </a>
-            <a href="/" class="btn btn-primary" style="flex: 1; text-align: center;">
+            <a href="/" class="btn btn-primary">
                 🏠 回首頁
             </a>
         </div>
 
-        <div style="height: 40px;"></div>
+        <!-- 版權聲明 -->
+        <div class="copyright">
+            <p class="copyright-brand">潮欣小幫手</p>
+            <p>便利商店生鮮品效期管理系統</p>
+            <p class="copyright-notice">© 2026 王逸君 版權所有</p>
+        </div>
     </div>
 
     <script src="/js/app.js"></script>
