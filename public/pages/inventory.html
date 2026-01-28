@@ -21,7 +21,241 @@
             <p class="subtitle">管理效期、下架處理</p>
         </div>
     </header>
+<!-- 
+  📍 這段程式碼要加入 public/pages/inventory.html
+  📍 位置：在頁面標題區塊附近，通常在 <h1> 或 header 後面
+-->
 
+<!-- ========== 管理員效期確認提醒區塊 ========== -->
+<div id="admin-notify-section" style="
+    background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+">
+    <div style="color: white;">
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 4px;">
+            🔔 效期確認提醒
+        </div>
+        <div style="font-size: 13px; opacity: 0.9;">
+            通知同仁確認商品效期（可能過期或登記錯誤）
+        </div>
+    </div>
+    <button id="btn-notify-now" onclick="sendNotifyNow()" style="
+        background: white;
+        color: #FF6B35;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 25px;
+        font-size: 15px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    ">
+        📢 立即確認效期
+    </button>
+</div>
+
+<!-- ========== 診斷工具區塊（可選） ========== -->
+<div id="admin-tools-section" style="
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+">
+    <div style="font-size: 14px; font-weight: bold; color: #495057; margin-bottom: 12px;">
+        🛠️ 診斷工具
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button onclick="checkInventoryStatus()" style="
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        ">🔍 檢查庫存狀態</button>
+        
+        <button onclick="checkLineStatus()" style="
+            background: #00B900;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        ">💬 檢查 LINE 設定</button>
+        
+        <button onclick="testLineMessage()" style="
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        ">🧪 發送測試訊息</button>
+    </div>
+    <div id="diagnostic-result" style="
+        margin-top: 12px;
+        padding: 12px;
+        background: white;
+        border-radius: 8px;
+        font-size: 13px;
+        display: none;
+        white-space: pre-wrap;
+        font-family: monospace;
+        max-height: 300px;
+        overflow-y: auto;
+    "></div>
+</div>
+
+<!-- ========== JavaScript 函數 ========== -->
+<script>
+// 發送提醒下架
+async function sendNotifyNow() {
+    const btn = document.getElementById('btn-notify-now');
+    const originalText = btn.innerHTML;
+    
+    try {
+        btn.innerHTML = '⏳ 發送中...';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        
+        const response = await fetch('/api/notify/manual');
+        const result = await response.json();
+        
+        if (result.error) {
+            throw new Error(result.error + (result.details ? `: ${result.details}` : ''));
+        }
+        
+        // 成功
+        btn.innerHTML = '✅ 已發送！';
+        btn.style.background = '#00A859';
+        btn.style.color = 'white';
+        
+        // 顯示結果
+        if (result.count > 0) {
+            alert(`✅ 已發送 ${result.count} 個商品的效期確認提醒！\n\n請同仁確認：\n• 商品是否真的到期需處理\n• 或是登記時效期輸入錯誤需修正`);
+        } else {
+            alert('📋 目前沒有需要確認效期的商品');
+        }
+        
+        // 3 秒後恢復按鈕
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = 'white';
+            btn.style.color = '#FF6B35';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }, 3000);
+        
+    } catch (error) {
+        console.error('發送提醒失敗:', error);
+        btn.innerHTML = '❌ 發送失敗';
+        btn.style.background = '#dc3545';
+        btn.style.color = 'white';
+        
+        alert('發送失敗：' + error.message);
+        
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = 'white';
+            btn.style.color = '#FF6B35';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }, 3000);
+    }
+}
+
+// 檢查庫存狀態
+async function checkInventoryStatus() {
+    const resultDiv = document.getElementById('diagnostic-result');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '🔍 檢查中...';
+    
+    try {
+        const response = await fetch('/api/notify/check');
+        const result = await response.json();
+        
+        let html = `📊 伺服器時間（台灣）：${result.server_time_tw}\n\n`;
+        html += `📦 庫存統計：\n`;
+        html += `   總在庫：${result.summary.total_in_stock} 件\n`;
+        html += `   已過期：${result.summary.expired} 件 🔴\n`;
+        html += `   今天到期：${result.summary.today} 件 🟠\n`;
+        html += `   明天到期：${result.summary.tomorrow} 件 🟡\n`;
+        html += `   3天內到期：${result.summary.within_3_days} 件\n\n`;
+        html += `📋 商品列表：\n`;
+        
+        result.items.forEach((item, i) => {
+            const emoji = item.diff_days < 0 ? '🔴' : 
+                         item.diff_days === 0 ? '🟠' : 
+                         item.diff_days === 1 ? '🟡' : '🟢';
+            html += `${i+1}. ${emoji} ${item.name} - ${item.status_text}\n`;
+        });
+        
+        resultDiv.innerHTML = html;
+    } catch (error) {
+        resultDiv.innerHTML = '❌ 檢查失敗：' + error.message;
+    }
+}
+
+// 檢查 LINE 設定
+async function checkLineStatus() {
+    const resultDiv = document.getElementById('diagnostic-result');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '🔍 檢查中...';
+    
+    try {
+        const response = await fetch('/api/notify/line-status');
+        const result = await response.json();
+        
+        let html = `💬 LINE Bot 設定狀態：\n\n`;
+        html += `🔧 LINE Bot：\n`;
+        html += `   設定存在：${result.line_bot.has_settings ? '✅' : '❌'}\n`;
+        html += `   群組 ID：${result.line_bot.has_group_id ? '✅' : '❌'}\n`;
+        html += `   Client 初始化：${result.line_bot.has_client ? '✅' : '❌'}\n\n`;
+        html += `🔑 環境變數：\n`;
+        html += `   LINE_GROUP_ID：${result.env_vars.LINE_GROUP_ID}\n`;
+        html += `   LINE_CHANNEL_ACCESS_TOKEN：${result.env_vars.LINE_CHANNEL_ACCESS_TOKEN}\n`;
+        html += `   LINE_CHANNEL_SECRET：${result.env_vars.LINE_CHANNEL_SECRET}\n\n`;
+        html += `⚙️ 通知設定：\n`;
+        html += `   啟用通知：${result.notification_settings.enabled === 'true' ? '✅ 是' : '❌ 否'}\n`;
+        html += `   提前時數：${result.notification_settings.hours_before} 小時\n`;
+        
+        resultDiv.innerHTML = html;
+    } catch (error) {
+        resultDiv.innerHTML = '❌ 檢查失敗：' + error.message;
+    }
+}
+
+// 發送測試訊息
+async function testLineMessage() {
+    const resultDiv = document.getElementById('diagnostic-result');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '🧪 發送測試訊息中...';
+    
+    try {
+        const response = await fetch('/api/notify/test-line');
+        const result = await response.json();
+        
+        if (result.success) {
+            resultDiv.innerHTML = `✅ 測試訊息已發送！\n\n請檢查 LINE 群組是否收到訊息。\n\n群組 ID：${result.group_id_preview}`;
+        } else {
+            resultDiv.innerHTML = `❌ 發送失敗：${result.error}`;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = '❌ 發送失敗：' + error.message;
+    }
+}
+</script>
     <div class="container">
         <!-- 工具列 -->
         <div class="toolbar">
